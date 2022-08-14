@@ -64,6 +64,9 @@ string trimComments(string currentLine);
 string trim(const string &s);
 bool processDirective(string currentLine);
 bool processInstruction(string currentLine);
+bool isLabel(string currentLine);
+string processLabel(string currentLine);
+void backpatching(string labelName, int value);
 
 void printSymbolTable();
 void printSectionTable();

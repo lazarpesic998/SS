@@ -23,3 +23,4 @@ bool isSkip(string currentLine);
 void processSkip(string currentLine);
 bool isEnd(string currentLine);
 void processEnd();
+void addIntToCode(int value);

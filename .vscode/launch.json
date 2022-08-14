@@ -9,7 +9,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/src/assembler_debug",
-        "args": ["-o", "main.o", "../testovi/nivo-a/main.s"],
+        "args": ["-o", "main.o", "../testovi/nivo-a/test.s"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],

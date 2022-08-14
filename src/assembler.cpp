@@ -28,14 +28,55 @@ bool processLine(string currentLine){
   myLine = trim(myLine);
   if (myLine.size() == 0) return true;
 
+  //ako naidjes na labelu procesiraj je
+  myLine = processLabel(myLine);
+
   if(isEnd(myLine)) {processEnd(); return false;}
   if (processDirective(myLine)) return true;
 
   //TODO: mozda je HALT kao posebna naredba
-  if(processInstruction(currentLine)) return false;
+  // if(processInstruction(currentLine)) return false;
 
   //TODO: change to return false after everything done maybe
   return true;
+}
+
+string processLabel(string currentLine){
+    regex reg ("(.*:)");
+    smatch matches;
+
+    while(std::regex_search(currentLine, matches, reg)){
+        // std::cout << "Nadjena labela" << "\n";
+        string labelName = matches.str(1);
+        labelName = labelName.substr(0, labelName.size()-1);
+      // Eliminate the previous match and create
+      // a new string to search
+      currentLine = matches.suffix().str();
+      //obrada labele
+      if(symbolTable.find(labelName) != symbolTable.end()) {
+        //simbol vec postoji
+        symbolTable[labelName].isDefined = true;
+        symbolTable[labelName].sectionNumber = currentSectionNumber;
+        symbolTable[labelName].value = locationCounter;
+        backpatching(labelName, locationCounter);
+
+      }else{
+          SymbolTableEntry newEntry = SymbolTableEntry(labelName,currentSectionNumber,locationCounter,currentSymbolNumber++, false, true,{}, -1);
+          symbolTable[labelName] = newEntry;
+      }
+
+    }
+    return currentLine;
+}
+
+void backpatching(string labelName, int value){
+
+  for(int i=0; i<symbolTable[labelName].flink.size(); i++){
+    int locationToRepair = symbolTable[labelName].flink.front();
+    symbolTable[labelName].flink.pop_front();
+    sectionTable[currentSectionName].code[locationToRepair] = value;
+  }
+
 }
 
 bool processDirective(string currentLine){

@@ -6,8 +6,8 @@ bool isGlobalDirective(string currentLine){
     smatch matches;
 
     while(std::regex_search(currentLine, matches, reg)){
-        //std::cout << "Nadjena global direktiva  " << "\n";
-        return matches.ready();
+      //std::cout << "Nadjena global direktiva  " << "\n";
+      return matches.ready();
     }
     return false;
 
@@ -42,8 +42,8 @@ bool isExtern(string currentLine){
     smatch matches;
 
     while(std::regex_search(currentLine, matches, reg)){
-        //std::cout << "Nadjena extern direktiva  " << "\n";
-        return matches.ready();
+      //std::cout << "Nadjena extern direktiva  " << "\n";
+      return matches.ready();
     }
     return false;
 }
@@ -54,19 +54,19 @@ void processExtern(string currentLine){
 
   while(std::regex_search(currentLine, matches, reg)){
     // Get the first match
-      string currVar = matches.str(1);
-  
-      // Eliminate the previous match and create
-      // a new string to search
-      currentLine = matches.suffix().str();
-      if(currVar == "extern") continue;
+    string currVar = matches.str(1);
 
-      if(symbolTable.find(currVar) != symbolTable.end()) {
-        cout<< "***ERROR!*** Symbol already defined!" << endl;
-        exit(-1);
-      }
-      SymbolTableEntry newEntry = SymbolTableEntry(currVar,0,0,currentSymbolNumber++, true, false,{}, -1);
-      symbolTable[currVar] = newEntry;
+    // Eliminate the previous match and create
+    // a new string to search
+    currentLine = matches.suffix().str();
+    if(currVar == "extern") continue;
+
+    if(symbolTable.find(currVar) != symbolTable.end()) {
+      cout<< "***ERROR!*** Symbol already defined!" << endl;
+      exit(-1);
+    }
+    SymbolTableEntry newEntry = SymbolTableEntry(currVar,0,0,currentSymbolNumber++, true, false,{}, -1);
+    symbolTable[currVar] = newEntry;
   }
 }
 
@@ -75,8 +75,8 @@ bool isSection(string currentLine){
     smatch matches;
 
     while(std::regex_search(currentLine, matches, reg)){
-        // std::cout << "Nadjena .section direktiva  " << "\n";
-        return matches.ready();
+      // std::cout << "Nadjena .section direktiva  " << "\n";
+      return matches.ready();
     }
     return false;
 }
@@ -110,8 +110,8 @@ void processSection(string currentLine){
 
   //if section exists
   if(symbolTable.find(sectionName) != symbolTable.end()) {
-        currentSection = symbolTable.find(sectionName)->second;
-        locationCounter = currentSection.size;
+    currentSection = symbolTable.find(sectionName)->second;
+    locationCounter = currentSection.size;
   }else{ //if section does not exist yet
   currentSection = newEntry;
     symbolTable[sectionName] = newEntry;
@@ -145,26 +145,39 @@ void processWordLiteral(string currentLine){
       currentLine = matches.suffix().str();
 
       int intVal = stoi(currVal);
-      unsigned char dataHigh = (unsigned) intVal >> 8;
-      unsigned char dataLow = (unsigned) intVal & 0xFF;
-      sectionTable[currentSectionName].code.push_back(dataLow);
-      sectionTable[currentSectionName].code.push_back(dataHigh);
-      sectionTable[currentSectionName].size += 2;
-      symbolTable[currentSectionName].size +=2;
-      locationCounter += 2;
+      addIntToCode(intVal);
   }
 }
 
 //TODO: implement method!!!
 void processWordSymbolList(string currentLine){
+  regex reg ("([_a-zA-Z][_a-zA-Z0-9]*)");
+  smatch matches;
 
+  while(std::regex_search(currentLine, matches, reg)){
+      string currVar = matches.str(1);
+      currentLine = matches.suffix().str();
+        if(currVar == "word") continue;
 
+      if(symbolTable.find(currVar) != symbolTable.end()) {
+        //ako postoji u tabeli simbola i definisan je
+        if(symbolTable[currVar].isDefined){
+          addIntToCode(symbolTable[currVar].value);
+        }else{//ako postoji u tabeli simbola i nije definisan
+          symbolTable[currVar].flink.push_back(locationCounter);
+          addIntToCode(0);
+        }
+      }else{ //ako ne postoji u tabeli simbola
+        SymbolTableEntry newEntry = SymbolTableEntry(currVar,currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
+        symbolTable[currVar] = newEntry;
+        addIntToCode(0);
+      }
+  }
 }
 
 bool isSkip(string currentLine){
     regex reg ("(.skip)");
     smatch matches;
-
     while(std::regex_search(currentLine, matches, reg)){
         // std::cout << "Nadjena .skip direktiva  " << "\n";
         return matches.ready();
@@ -175,34 +188,43 @@ bool isSkip(string currentLine){
 void processSkip(string currentLine){
   regex reg ("([0-9]+)");
   smatch matches;
-
   while(std::regex_search(currentLine, matches, reg)){
-      string currVal = matches.str(1);
-      currentLine = matches.suffix().str();
+    string currVal = matches.str(1);
+    currentLine = matches.suffix().str();
 
-      int intVal = stoi(currVal);
-      for(int i=0; i<intVal; i++){
-        sectionTable[currentSectionName].code.push_back(0);
-        sectionTable[currentSectionName].size ++;
-        symbolTable[currentSectionName].size ++;
-        locationCounter ++;
-      }
-      
+    int intVal = stoi(currVal);
+    for(int i=0; i<intVal; i++){
+      sectionTable[currentSectionName].code.push_back(0);
+      sectionTable[currentSectionName].size++;
+      symbolTable[currentSectionName].size++;
+      locationCounter++;
+    }
   }
 }
 
 bool isEnd(string currentLine){
-    regex reg ("(.end)");
-    smatch matches;
-
-    while(std::regex_search(currentLine, matches, reg)){
-        // std::cout << "Nadjena .end direktiva  " << "\n";
-        return matches.ready();
-    }
-    return false;
+  regex reg ("(.end)");
+  smatch matches;
+  while(std::regex_search(currentLine, matches, reg)){
+    // std::cout << "Nadjena .end direktiva  " << "\n";
+    return matches.ready();
+  }
+  return false;
 }
 
 void processEnd(){
-    currentSection = symbolTable.find(currentSectionName)->second;
-    currentSection.size = locationCounter;
+  currentSection = symbolTable.find(currentSectionName)->second;
+  currentSection.size = locationCounter;
+}
+
+//HELPERS
+void addIntToCode(int value){
+  unsigned char dataHigh = (unsigned) value >> 8;
+  unsigned char dataLow = (unsigned) value & 0xFF;
+  sectionTable[currentSectionName].code.push_back(dataLow);
+  sectionTable[currentSectionName].code.push_back(dataHigh);
+
+  sectionTable[currentSectionName].size += 2;
+  symbolTable[currentSectionName].size +=2;
+  locationCounter += 2;
 }
