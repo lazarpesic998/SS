@@ -12,6 +12,42 @@ int currentSectionNumber = 0;
 string currentSectionName = "UND";
 SymbolTableEntry currentSection;
 int locationCounter = 0;
+bool halt = false;
+
+map<string, int> instructionTable = {
+  {"halt", 0x00}, //zaustavaljanje procesora
+  {"int",  0x10}, //instrukcija softverskog prekida
+  {"iret", 0x20}, //instrukcija povratka iz prekidne rutine
+  {"call", 0x30}, //instrukcija poziva potprograma
+  {"ret",  0x40}, //instrukcija povratka iz potprograma
+  //skokovi
+  {"jmp",  0x50},
+  {"jeq",  0x51},
+  {"jne",  0x52},
+  {"jgt",  0x53},
+  //TODO: push i pop
+  // {"push", 0b0000},
+  // {"pop", 0b0000},
+  {"xchg", 0x60}, //instrukcija atomicne zamene vrednosti
+  //aritmeticke operacije
+  {"add",  0x70}, 
+  {"sub",  0x71},
+  {"mul",  0x72},
+  {"div",  0x73},
+  {"cmp",  0x74},
+  //logicke operacije
+  {"not",  0x80},
+  {"and",  0x81},
+  {"or",   0x82},
+  {"xor",  0x83},
+  {"test", 0x84},
+  //pomeracke operacije
+  {"shl",  0x90},
+  {"shr",  0x91},
+  //load i store
+  {"ldr", 0xA0},
+  {"str", 0xB0}
+};
 
 
 //FUNCTIONS
@@ -26,16 +62,14 @@ bool processLine(string currentLine){
   //trimming line
   string myLine = trimComments(currentLine);
   myLine = trim(myLine);
-  if (myLine.size() == 0) return true;
-
+  
   //ako naidjes na labelu procesiraj je
   myLine = processLabel(myLine);
+  if (myLine.size() == 0 || myLine == ":") return true; //vrati ako nemas vise sta da obradis
 
   if(isEnd(myLine)) {processEnd(); return false;}
   if (processDirective(myLine)) return true;
-
-  //TODO: mozda je HALT kao posebna naredba
-  // if(processInstruction(currentLine)) return false;
+  if(!halt){processInstruction(currentLine); return true;}
 
   //TODO: change to return false after everything done maybe
   return true;
@@ -64,13 +98,13 @@ string processLabel(string currentLine){
           SymbolTableEntry newEntry = SymbolTableEntry(labelName,currentSectionNumber,locationCounter,currentSymbolNumber++, false, true,{}, -1);
           symbolTable[labelName] = newEntry;
       }
-
     }
     return currentLine;
 }
 
 void backpatching(string labelName, int value){
 
+//reapair symbols in code which were not defined before
   for(int i=0; i<symbolTable[labelName].flink.size(); i++){
     int locationToRepair = symbolTable[labelName].flink.front();
     symbolTable[labelName].flink.pop_front();
@@ -89,41 +123,47 @@ bool processDirective(string currentLine){
   return false;
 }
 
-bool processIntstruction(string currentLine){
+bool processInstruction(string currentLine){
+  
+  regex reg ("([_a-zA-Z][_a-zA-Z0-9]*)");
+  smatch matches;
+  std::regex_search(currentLine, matches, reg);
+  string instructionName = matches.str(1);
+  currentLine = matches.suffix().str();
 
-  if(isHalt(currentLine)){processHalt(currentLine); return true;}
-  if(isInt(currentLine)){procesInt(currentLine); return true;}
-  if(isIret(currentLine)){processIret(currentLine); return true;}
-  if(isCall(currentLine)){processCall(currentLine); return true;}
-  if(isRet(currentLine)){processRet(currentLine); return true;}
-  //naredbe skoka
-  if(isJmp(currentLine)){processJmp(currentLine); return true;}
-  if(isJeq(currentLine)){processJeq(currentLine); return true;}
-  if(isJne(currentLine)){processJne(currentLine); return true;}
-  if(isJgt(currentLine)){processJgt(currentLine); return true;}
-  //push i pop
-  if(isPush(currentLine)){processPush(currentLine); return true;}
-  if(isPop(currentLine)){processPop(currentLine); return true;}
-  //artitmeticke naredbe
-  if(isXchg(currentLine)){processXchg(currentLine); return true;}
-  if(isAdd(currentLine)){processAdd(currentLine); return true;}
-  if(isSub(currentLine)){processSub(currentLine); return true;}
-  if(isMul(currentLine)){processMul(currentLine); return true;}
-  if(isDiv(currentLine)){processDiv(currentLine); return true;}
-  //logicke naredbe
-  if(isCmp(currentLine)){processCmp(currentLine); return true;}
-  if(isNot(currentLine)){processNot(currentLine); return true;}
-  if(isAnd(currentLine)){processAnd(currentLine); return true;}
-  if(isOr(currentLine)){processOr(currentLine); return true;}
-  if(isXor(currentLine)){processXor(currentLine); return true;}
-  if(isTest(currentLine)){processTest(currentLine); return true;}
-  if(isShl(currentLine)){processShl(currentLine); return true;}
-  if(isShr(currentLine)){processShr(currentLine); return true;}
-  //load i store
-  if(isLdr(currentLine)){processLdr(currentLine); return true;}
-  if(isStr(currentLine)){processStr(currentLine); return true;}
+  //NO OPERANDS INSTRUCTIONS
+  if(instructionName == "halt"){
+    halt = true;
+    addByteToCode(instructionTable[instructionName]);
+    return true;
+  }
+  if(instructionName == "iret" || instructionName == "ret"){
+    addByteToCode(instructionTable[instructionName]);
+    return true;
+  }
 
+  //INSTRUCTIONS WITH REGISTARS ONLY
+  std::set<string> instructionsWithReg = { "int", "xchg", "add", "sub", 
+                                      "mul", "div", "cmp", "not",
+                                      "and", "or", "xor", "test",
+                                      "shl", "shr"};
+  if (instructionsWithReg.find(instructionName) != instructionsWithReg.end()) {
+    
+    addByteToCode(instructionTable[instructionName]);
+    std::regex_search(currentLine, matches, reg);
+    string regD = matches.str(1);
+    currentLine = matches.suffix().str(); std::regex_search(currentLine, matches, reg);
+    string regS = matches.str(1);
+    addRegistersInfo(regD, regS);
 
+  }
+  //JUMP INSTRUCTIONS WITH OPERAND
+   std::set<string> jumpInstructions = { "call", "jmp", "jeq", "jne", "jgt"};
+  if (jumpInstructions.find(instructionName) != jumpInstructions.end()) {
+    addByteToCode(instructionTable[instructionName]);
+    processJumpOperand(currentLine);
+  }
+  
   return false;
 }
 

@@ -9,6 +9,7 @@ using namespace std;
 #include <map>
 #include <iomanip>
 #include <locale>
+#include <set>
 
 struct SymbolTableEntry{
 
@@ -49,7 +50,6 @@ struct SectionTableEntry{
   SectionTableEntry(){};
 };
 
-
 extern map <string, SymbolTableEntry> symbolTable;
 extern map <string, SectionTableEntry> sectionTable;
 extern int currentSymbolNumber;
@@ -57,6 +57,8 @@ extern int currentSectionNumber;
 extern string currentSectionName;
 extern SymbolTableEntry currentSection;
 extern int locationCounter;
+extern bool halt;
+extern map<string, int> instructionTable;
 
 void setupAssembler();
 bool processLine(string currentLine);

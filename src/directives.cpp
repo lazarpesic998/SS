@@ -137,7 +137,7 @@ void processWord(string currentLine){
 }
 
 void processWordLiteral(string currentLine){
-  regex reg (R"((?:^|\s)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s))");
+  regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
   smatch matches;
 
   while(std::regex_search(currentLine, matches, reg)){
@@ -145,11 +145,10 @@ void processWordLiteral(string currentLine){
       currentLine = matches.suffix().str();
 
       int intVal = stoi(currVal);
-      addIntToCode(intVal);
+      addWordToCode(intVal);
   }
 }
 
-//TODO: implement method!!!
 void processWordSymbolList(string currentLine){
   regex reg ("([_a-zA-Z][_a-zA-Z0-9]*)");
   smatch matches;
@@ -162,15 +161,15 @@ void processWordSymbolList(string currentLine){
       if(symbolTable.find(currVar) != symbolTable.end()) {
         //ako postoji u tabeli simbola i definisan je
         if(symbolTable[currVar].isDefined){
-          addIntToCode(symbolTable[currVar].value);
+          addWordToCode(symbolTable[currVar].value);
         }else{//ako postoji u tabeli simbola i nije definisan
           symbolTable[currVar].flink.push_back(locationCounter);
-          addIntToCode(0);
+          addWordToCode(0);
         }
       }else{ //ako ne postoji u tabeli simbola
         SymbolTableEntry newEntry = SymbolTableEntry(currVar,currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
         symbolTable[currVar] = newEntry;
-        addIntToCode(0);
+        addWordToCode(0);
       }
   }
 }
@@ -218,7 +217,7 @@ void processEnd(){
 }
 
 //HELPERS
-void addIntToCode(int value){
+void addWordToCode(int value){
   unsigned char dataHigh = (unsigned) value >> 8;
   unsigned char dataLow = (unsigned) value & 0xFF;
   sectionTable[currentSectionName].code.push_back(dataLow);
