@@ -68,9 +68,15 @@ bool processDirective(string currentLine);
 bool processInstruction(string currentLine);
 bool isLabel(string currentLine);
 string processLabel(string currentLine);
+
 void backpatching(string labelName, int value);
+void handleSymbol(string symbolName, int addend);
+int findReg(string reg);
+char createRegByte(int regD, int regS);
+int myStoi(string literal);
 
 void printSymbolTable();
 void printSectionTable();
 void generateOutput(string outputFile);
+
 

@@ -108,18 +108,25 @@ void backpatching(string labelName, int value){
   for(int i=0; i<symbolTable[labelName].flink.size(); i++){
     int locationToRepair = symbolTable[labelName].flink.front();
     symbolTable[labelName].flink.pop_front();
-    sectionTable[currentSectionName].code[locationToRepair] = value;
+    //TODO: proveri da li treba samo jedan bajt da prepravis ili 2!!!
+    sectionTable[currentSectionName].code[locationToRepair] += value;
   }
 
 }
 
 bool processDirective(string currentLine){
 
-  if(isGlobalDirective(currentLine)){processGlobalDirective(currentLine); return true;}
-  if(isExtern(currentLine)){processExtern(currentLine); return true;}
-  if(isSection(currentLine)){processSection(currentLine); return true;}
-  if(isWord(currentLine)){processWord(currentLine); return true;}
-  if(isSkip(currentLine)){processSkip(currentLine); return true;}
+  regex reg ("(\\.?[_a-zA-Z][_a-zA-Z0-9]*)");
+  smatch matches;
+  std::regex_search(currentLine, matches, reg);
+  string directiveName = matches.str(1);
+  currentLine = matches.suffix().str();
+
+  if(directiveName == ".global"){processGlobalDirective(currentLine); return true;}
+  if(directiveName == ".extern"){processExtern(currentLine); return true;}
+  if(directiveName == ".section"){processSection(currentLine); return true;}
+  if(directiveName == ".word"){processWord(currentLine); return true;}
+  if(directiveName == ".skip"){processSkip(currentLine); return true;}
   return false;
 }
 
@@ -155,13 +162,26 @@ bool processInstruction(string currentLine){
     currentLine = matches.suffix().str(); std::regex_search(currentLine, matches, reg);
     string regS = matches.str(1);
     addRegistersInfo(regD, regS);
-
+    return true;
   }
+
+  //DATA INSTRUCTIONS WITH OPERAND
+  std::set<string> jumpInstructions = { "ld", "str" };
+    if (jumpInstructions.find(instructionName) != jumpInstructions.end()) {
+    addByteToCode(instructionTable[instructionName]);
+    processDataOperand(currentLine);
+
+    return true;
+  }
+
+
   //JUMP INSTRUCTIONS WITH OPERAND
-   std::set<string> jumpInstructions = { "call", "jmp", "jeq", "jne", "jgt"};
+  std::set<string> jumpInstructions = { "call", "jmp", "jeq", "jne", "jgt"};
   if (jumpInstructions.find(instructionName) != jumpInstructions.end()) {
     addByteToCode(instructionTable[instructionName]);
     processJumpOperand(currentLine);
+
+    return true;
   }
   
   return false;
@@ -182,6 +202,48 @@ void generateOutput(string output){
 
 
 //HELPER FUNCTIONS
+void handleSymbol(string symbolName, int addend){
+
+    if(symbolTable.find(symbolName) != symbolTable.end()) {
+
+      //ako postoji u tabeli simbola i definisan je
+      if(symbolTable[symbolName].isDefined){
+        addWordToCode(symbolTable[symbolName].value);
+      }
+      else{
+        //ako postoji u tabeli simbola i nije definisan
+        symbolTable[symbolName].flink.push_back(locationCounter);
+        addWordToCode(addend);
+      }
+  }
+  else{ //ako ne postoji u tabeli simbola
+      SymbolTableEntry newEntry = SymbolTableEntry(symbolName,currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
+      symbolTable[symbolName] = newEntry;
+      addWordToCode(addend);
+  }
+}
+
+int findReg(string reg){
+    int regVal=0xF;
+    if(reg == "sp") regVal = 0x6;
+    else if(reg == "pc") regVal = 0x07;
+    else if(reg == "psw") regVal = 0xF;
+    else{
+        regVal = stoi(reg.erase(0,1));
+    }
+    return regVal;
+}
+
+char createRegByte(int regD, int regS){
+    return ((regD & 0xF) << 4 | (regS & 0xF));
+}
+
+int myStoi(string literal){
+  if (literal.rfind("0x", 0) == 0) return stoi(literal, 0, 16);
+  else return stoi(literal);
+}
+
+
 void printSectionTable(){
 
   cout << "Section table" << endl;

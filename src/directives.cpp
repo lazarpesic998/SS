@@ -87,13 +87,13 @@ void processSection(string currentLine){
   regex reg ("([_a-zA-Z][_a-zA-Z0-9]*)");
   smatch matches;
   regex_search(currentLine, matches, reg);
-  currentLine = matches.suffix().str();
-  regex_search(currentLine, matches, reg);
+  // currentLine = matches.suffix().str();
+  // regex_search(currentLine, matches, reg);
   
-  if(matches.size()!= 2) {
-    cout<< "***ERROR!*** Too many params for section directive!" << endl;
-    exit(-1);
-  }
+  // if(matches.size()!= 2) {
+  //   cout<< "***ERROR!*** Too many params for section directive!" << endl;
+  //   exit(-1);
+  // }
   string sectionName = matches.str(1);
 
   //procces previous section
@@ -137,14 +137,15 @@ void processWord(string currentLine){
 }
 
 void processWordLiteral(string currentLine){
-  regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+  //regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+  regex reg ("((0x\\w+)|[0-9]+)");
   smatch matches;
 
   while(std::regex_search(currentLine, matches, reg)){
       string currVal = matches.str(1);
       currentLine = matches.suffix().str();
 
-      int intVal = stoi(currVal);
+      int intVal = myStoi(currVal);
       addWordToCode(intVal);
   }
 }
@@ -156,21 +157,7 @@ void processWordSymbolList(string currentLine){
   while(std::regex_search(currentLine, matches, reg)){
       string currVar = matches.str(1);
       currentLine = matches.suffix().str();
-        if(currVar == "word") continue;
-
-      if(symbolTable.find(currVar) != symbolTable.end()) {
-        //ako postoji u tabeli simbola i definisan je
-        if(symbolTable[currVar].isDefined){
-          addWordToCode(symbolTable[currVar].value);
-        }else{//ako postoji u tabeli simbola i nije definisan
-          symbolTable[currVar].flink.push_back(locationCounter);
-          addWordToCode(0);
-        }
-      }else{ //ako ne postoji u tabeli simbola
-        SymbolTableEntry newEntry = SymbolTableEntry(currVar,currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
-        symbolTable[currVar] = newEntry;
-        addWordToCode(0);
-      }
+      handleSymbol(currVar, 0);
   }
 }
 

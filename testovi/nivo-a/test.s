@@ -1,10 +1,12 @@
 .section my_test
 .skip 4
-a:
-jmp a
+rasta:
 b: .word a
-jmp b
-jmp *b
-jeq $a
-jmp [b]
-jeq 3
+jmp *0xA2
+#jmp rasta
+#jmp 0x51
+#jmp 5
+jeq *[r5 + 0xA1]
+jmp *[r5 + rasta]
+.word b
+.skip 3

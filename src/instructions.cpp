@@ -38,20 +38,39 @@ void processJumpOperand(string currentLine){
     if(absoluteJumpLiteral(currentLine)) return;
     if(absoluteJumpSymbol(currentLine)) return;
 
-    //
+    //PC relativno adresiranje
+    if(pcRelativeJumpSymbol(currentLine)) return;
+
+    //registarsko direktno adresiranje
+    if(registerDirectJump(currentLine)) return;
+
+    //memorijsko direktno adresiranje
+    if(memoryDirectJumpLiteral(currentLine)) return;
+    if(memoryDirectJumpSymbol(currentLine)) return;
+
+    //registrarsko indirektno
+    if(registerIndirectJump(currentLine)) return;
+
+    //registrarsko indirektno sa pomerajem
+    if(registerIndirectJumpWithOffsetLiteral(currentLine)) return;
+    if(registerIndirectJumpWithOffsetSymbol(currentLine)) return;
 
 }
 
 bool absoluteJumpLiteral(string currentLine){
-    regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+    // regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+    regex reg ("((0x\\w+)|[0-9]+)");
+
     smatch matches;
 
-    if(std::regex_search(currentLine, matches, reg)){
+    if(std::regex_match(currentLine, matches, reg)){
         //RegsDescr
         addByteToCode(0xFF);
         //AddrMode
         addByteToCode(0x00);
-        addWordToCode(stoi(matches.str(1)));
+
+        string literal = matches.str(1);
+        addWordToCode(myStoi(literal));
         return true;
     }
     return false;
@@ -62,35 +81,368 @@ bool absoluteJumpSymbol(string currentLine){
     regex reg (R"((?:^|\s|,)([+-]?[[:w:]]+(?:\.[[:w:]]+)?)(?=$|\s|,))");
     smatch matches;
 
+    if(std::regex_match(currentLine, matches, reg)){
+        //RegsDescr
+        addByteToCode(0xFF);
+        //AddrMode
+        addByteToCode(0x00);
+        string currVar = matches.str(1);
+        handleSymbol(currVar, 0);
+        return true;
+    }
+    return false;
+}
+
+//registarsko direktno sa pomerajem
+bool pcRelativeJumpSymbol(string currentLine){
+    regex reg ("(%[_a-zA-Z][_a-zA-Z0-9]*)");
+    smatch matches;
+
     if(std::regex_search(currentLine, matches, reg)){
+        //RegsDescr
+        addByteToCode(0xF7);
+        //AddrMode - registarsko direktno sa pomerajem
+        addByteToCode(0x05);
+
+        string currVar = matches.str(1);
+        currVar.erase(0,1); // removes first character
+
+        handleSymbol(currVar, -locationCounter);
+        return true;
+    }
+    return false;
+}
+
+//memorijsko direktno adresiranje
+bool memoryDirectJumpLiteral(string currentLine){
+    //regex reg (R"((?:^|\s|,)([*][[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+    regex reg ("\\*((0x\\w+)|[0-9]+)");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+        //RegsDescr
+        addByteToCode(0xFF);
+        //AddrMode
+        addByteToCode(0x04);
+        string literal = matches.str(1);
+        addWordToCode(myStoi(literal));
+        return true;
+    }
+    return false;
+}
+
+bool memoryDirectJumpSymbol(string currentLine){
+
+    regex reg ("(\\*[_a-zA-Z][_a-zA-Z0-9]*)");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+        //RegsDescr
+        addByteToCode(0xFF);
+        //AddrMode
+        addByteToCode(0x04);
+        string currVar = matches.str(1);
+        handleSymbol(currVar, 0);
+        return true;
+    }
+    return false;
+}
+
+//registarsko direktno adresiranje - (3B)
+bool registerDirectJump(string currentLine){
+
+    regex reg ("\\*(sp|pc|psw|r[0-9])");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+
+        string currVar = matches.str(1);
+        int regD = 0xF;
+        int regS = findReg(currVar);
+        unsigned char regDescr = createRegByte(regD, regS);
+
+        //RegsDescr
+        addByteToCode(regDescr);
+        //AddrMode
+        addByteToCode(0x01);
+        return true;
+    }
+    return false;
+}
+
+//registarsko indirektno adresiranje - (3B)
+bool registerIndirectJump(string currentLine){
+
+    regex reg ("\\*\\[(sp|pc|psw|r[0-9])\\]");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+
+        string currVar = matches.str(1);
+        int regD = 0xF;
+        int regS = findReg(currVar);
+        unsigned char regDescr = createRegByte(regD, regS);
+
+        //RegsDescr
+        addByteToCode(regDescr);
+        //AddrMode
+        addByteToCode(0x02);
+        return true;
+    }
+    return false;
+}
+
+//registarsko indirektno adresiranje sa pomerajem - (5B)
+bool registerIndirectJumpWithOffsetLiteral(string currentLine){
+    //          \*\[(sp|pc|psw|r[0-9])\+(0x\w+|[0-9]+)\]
+    regex reg ("(\\*\\[(sp|pc|psw|r[0-9]) \\+ ((0x\\w+)|[0-9]+)\\])");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+
+        string regSrc = matches.str(2);
+        string literal = matches.str(3);
+        int regD = 0xF;
+        int regS = findReg(regSrc);
+        unsigned char regDescr = createRegByte(regD, regS);
+
+        //RegsDescr
+        addByteToCode(regDescr);
+        //AddrMode
+        addByteToCode(0x03);
+        addWordToCode(myStoi(literal));
+        return true;
+    }
+    return false;
+}
+
+bool registerIndirectJumpWithOffsetSymbol(string currentLine){
+    regex reg ("(\\*\\[(sp|pc|psw|r[0-9]) \\+ ([_a-zA-Z][_a-zA-Z0-9]*)\\])");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+
+        string regSrc = matches.str(2);
+        string symbol = matches.str(3);
+        int regD = 0xF;
+        int regS = findReg(regSrc);
+        unsigned char regDescr = createRegByte(regD, regS);
+
+        //RegsDescr
+        addByteToCode(regDescr);
+        //AddrMode
+        addByteToCode(0x03);
+        handleSymbol(symbol,0);
+        return true;
+    }
+    return false;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//DATA OPERAND LD AND STR
+void processDataOperand(string currentLine){
+
+    //neposredno adresiranje
+    if(absoluteDataLiteral(currentLine)) return;
+    if(absoluteDataSymbol(currentLine)) return;
+
+    //PC relativno adresiranje
+    // if(pcRelativeJumpSymbol(currentLine)) return;
+
+    // //registarsko direktno adresiranje
+    // if(registerDirectJump(currentLine)) return;
+
+    // //memorijsko direktno adresiranje
+    // if(memoryDirectJumpLiteral(currentLine)) return;
+    // if(memoryDirectJumpSymbol(currentLine)) return;
+
+    // //registrarsko indirektno
+    // if(registerIndirectJump(currentLine)) return;
+
+    // //registrarsko indirektno sa pomerajem
+    // if(registerIndirectJumpWithOffsetLiteral(currentLine)) return;
+    // if(registerIndirectJumpWithOffsetSymbol(currentLine)) return;
+}
+
+
+bool absoluteDataLiteral(string currentLine){
+    // regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+    regex reg ("$((0x\\w+)|[0-9]+)");
+
+    smatch matches;
+
+    if(std::regex_match(currentLine, matches, reg)){
         //RegsDescr
         addByteToCode(0xFF);
         //AddrMode
         addByteToCode(0x00);
 
-        string currVar = matches.str(1);
-        if(symbolTable.find(currVar) != symbolTable.end()) {
-            //ako postoji u tabeli simbola i definisan je
-            if(symbolTable[currVar].isDefined){
-            addWordToCode(symbolTable[currVar].value);
-            }else{//ako postoji u tabeli simbola i nije definisan
-            symbolTable[currVar].flink.push_back(locationCounter);
-            addWordToCode(0);
-            }
-        }else{ //ako ne postoji u tabeli simbola
-            SymbolTableEntry newEntry = SymbolTableEntry(currVar,currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
-            symbolTable[currVar] = newEntry;
-            addWordToCode(0);
-        }
-        
+        string literal = matches.str(1);
+        addWordToCode(myStoi(literal));
+        return true;
     }
     return false;
 }
 
-void absoluteAddressing(int value){
-    //RegsDescr
-    addByteToCode(0xFF);
-    //AddrMode
-    addByteToCode(0x00);
-    addWordToCode(value);
+bool absoluteDataSymbol(string currentLine){
+
+    // regex reg (R"((?:^|\s|,)([+-]?[[:w:]]+(?:\.[[:w:]]+)?)(?=$|\s|,))");
+    regex reg ("$([_a-zA-Z][_a-zA-Z0-9]*)");
+    smatch matches;
+
+    if(std::regex_match(currentLine, matches, reg)){
+        //RegsDescr
+        addByteToCode(0xFF);
+        //AddrMode
+        addByteToCode(0x00);
+        string currVar = matches.str(1);
+        handleSymbol(currVar, 0);
+        return true;
+    }
+    return false;
 }
+
+//registarsko direktno sa pomerajem
+// bool pcRelativeJumpSymbol(string currentLine){
+//     regex reg ("(%[_a-zA-Z][_a-zA-Z0-9]*)");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+//         //RegsDescr
+//         addByteToCode(0xF7);
+//         //AddrMode - registarsko direktno sa pomerajem
+//         addByteToCode(0x05);
+
+//         string currVar = matches.str(1);
+//         currVar.erase(0,1); // removes first character
+
+//         handleSymbol(currVar, -locationCounter);
+//         return true;
+//     }
+//     return false;
+// }
+
+// //memorijsko direktno adresiranje
+// bool memoryDirectJumpLiteral(string currentLine){
+//     //regex reg (R"((?:^|\s|,)([*][[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
+//     regex reg ("\\*((0x\\w+)|[0-9]+)");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+//         //RegsDescr
+//         addByteToCode(0xFF);
+//         //AddrMode
+//         addByteToCode(0x04);
+//         string literal = matches.str(1);
+//         addWordToCode(myStoi(literal));
+//         return true;
+//     }
+//     return false;
+// }
+
+// bool memoryDirectJumpSymbol(string currentLine){
+
+//     regex reg ("(\\*[_a-zA-Z][_a-zA-Z0-9]*)");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+//         //RegsDescr
+//         addByteToCode(0xFF);
+//         //AddrMode
+//         addByteToCode(0x04);
+//         string currVar = matches.str(1);
+//         handleSymbol(currVar, 0);
+//         return true;
+//     }
+//     return false;
+// }
+
+// //registarsko direktno adresiranje - (3B)
+// bool registerDirectJump(string currentLine){
+
+//     regex reg ("\\*(sp|pc|psw|r[0-9])");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+
+//         string currVar = matches.str(1);
+//         int regD = 0xF;
+//         int regS = findReg(currVar);
+//         unsigned char regDescr = createRegByte(regD, regS);
+
+//         //RegsDescr
+//         addByteToCode(regDescr);
+//         //AddrMode
+//         addByteToCode(0x01);
+//         return true;
+//     }
+//     return false;
+// }
+
+// //registarsko indirektno adresiranje - (3B)
+// bool registerIndirectJump(string currentLine){
+
+//     regex reg ("\\*\\[(sp|pc|psw|r[0-9])\\]");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+
+//         string currVar = matches.str(1);
+//         int regD = 0xF;
+//         int regS = findReg(currVar);
+//         unsigned char regDescr = createRegByte(regD, regS);
+
+//         //RegsDescr
+//         addByteToCode(regDescr);
+//         //AddrMode
+//         addByteToCode(0x02);
+//         return true;
+//     }
+//     return false;
+// }
+
+// //registarsko indirektno adresiranje sa pomerajem - (5B)
+// bool registerIndirectJumpWithOffsetLiteral(string currentLine){
+//     //          \*\[(sp|pc|psw|r[0-9])\+(0x\w+|[0-9]+)\]
+//     regex reg ("(\\*\\[(sp|pc|psw|r[0-9]) \\+ ((0x\\w+)|[0-9]+)\\])");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+
+//         string regSrc = matches.str(2);
+//         string literal = matches.str(3);
+//         int regD = 0xF;
+//         int regS = findReg(regSrc);
+//         unsigned char regDescr = createRegByte(regD, regS);
+
+//         //RegsDescr
+//         addByteToCode(regDescr);
+//         //AddrMode
+//         addByteToCode(0x03);
+//         addWordToCode(myStoi(literal));
+//         return true;
+//     }
+//     return false;
+// }
+
+// bool registerIndirectJumpWithOffsetSymbol(string currentLine){
+//     regex reg ("(\\*\\[(sp|pc|psw|r[0-9]) \\+ ([_a-zA-Z][_a-zA-Z0-9]*)\\])");
+//     smatch matches;
+
+//     if(std::regex_search(currentLine, matches, reg)){
+
+//         string regSrc = matches.str(2);
+//         string symbol = matches.str(3);
+//         int regD = 0xF;
+//         int regS = findReg(regSrc);
+//         unsigned char regDescr = createRegByte(regD, regS);
+
+//         //RegsDescr
+//         addByteToCode(regDescr);
+//         //AddrMode
+//         addByteToCode(0x03);
+//         handleSymbol(symbol,0);
+//         return true;
+//     }
+//     return false;
+// }
