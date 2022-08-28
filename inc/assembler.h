@@ -10,20 +10,39 @@ using namespace std;
 #include <iomanip>
 #include <locale>
 #include <set>
+#include <algorithm>
+#include <experimental/filesystem>
+
+
+struct RelocationTableEntry{
+  string type;//0-apsolutno adresiranje, 1 - pc relativno adresiranje
+  int offset = 0;
+  string symbolTableRef;
+
+  RelocationTableEntry(string type, int offset, string symbolTableRef){
+    this->type = type;
+    this->offset = offset;
+    this->symbolTableRef = symbolTableRef;
+  };
+  RelocationTableEntry(){};
+};
 
 struct SymbolTableEntry{
 
   string symbolName;
   int sectionNumber = 0;
+  string sectionName;
   int value = 0;
   int symbolNumber;
   bool isGlobal = false;
   bool isDefined = false;
   list<int> flink = {};
   int size = -1;
+  list<RelocationTableEntry> reloactions;
 
-  SymbolTableEntry(string symbolName, int sectionNumber, int value, int symbolNumber, bool isGlobal, bool isDefined, list<int> flink, int size){
+  SymbolTableEntry(string symbolName, string sectionName, int sectionNumber, int value, int symbolNumber, bool isGlobal, bool isDefined, list<int> flink, int size){
     this->symbolName = symbolName;
+    this->sectionName = sectionName;
     this->sectionNumber = sectionNumber;
     this->value = value;
     this->symbolNumber = symbolNumber;
@@ -33,7 +52,6 @@ struct SymbolTableEntry{
     this->size = size;
   }
   SymbolTableEntry(){};
-  
 };
 
 struct SectionTableEntry{
@@ -59,6 +77,7 @@ extern SymbolTableEntry currentSection;
 extern int locationCounter;
 extern bool halt;
 extern map<string, int> instructionTable;
+extern map <string, list<RelocationTableEntry>> relocationTable;
 
 void setupAssembler();
 bool processLine(string currentLine);
@@ -70,13 +89,17 @@ bool isLabel(string currentLine);
 string processLabel(string currentLine);
 
 void backpatching(string labelName, int value);
-void handleSymbol(string symbolName, int addend);
+void handleSymbol(string symbolName, string relocationType);
 int findReg(string reg);
 char createRegByte(int regD, int regS);
 int myStoi(string literal);
 
 void printSymbolTable();
 void printSectionTable();
+void printSymbolTableInFile(string output);
+void printSectionTableInFile(string output);
+void patchLocalRelocations();
 void generateOutput(string outputFile);
+vector<pair<string, SymbolTableEntry>> sortMapToVectorPairs();
 
 

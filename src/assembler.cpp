@@ -7,6 +7,7 @@ using namespace std;
 //VARIABLES
 map <string, SymbolTableEntry> symbolTable;
 map <string, SectionTableEntry> sectionTable;
+map <string, list<RelocationTableEntry>> relocationTable;
 int currentSymbolNumber = 0;
 int currentSectionNumber = 0;
 string currentSectionName = "UND";
@@ -25,10 +26,11 @@ map<string, int> instructionTable = {
   {"jeq",  0x51},
   {"jne",  0x52},
   {"jgt",  0x53},
-  //TODO: push i pop
-  // {"push", 0b0000},
-  // {"pop", 0b0000},
-  {"xchg", 0x60}, //instrukcija atomicne zamene vrednosti
+  //push, pop
+  {"push", 0xB0},
+  {"pop", 0xA0},
+ //instrukcija atomicne zamene vrednosti
+  {"xchg", 0x60},
   //aritmeticke operacije
   {"add",  0x70}, 
   {"sub",  0x71},
@@ -52,7 +54,7 @@ map<string, int> instructionTable = {
 
 //FUNCTIONS
 void setupAssembler(){
-  SymbolTableEntry* newEntry = new SymbolTableEntry("UND",0,0,currentSymbolNumber++, false, false,{}, 0);
+  SymbolTableEntry* newEntry = new SymbolTableEntry("UND", "UND", 0,0,currentSymbolNumber++, false, false,{}, 0);
   symbolTable["UND"] = *newEntry;
 }
 
@@ -72,7 +74,8 @@ bool processLine(string currentLine){
   if(!halt){processInstruction(currentLine); return true;}
 
   //TODO: change to return false after everything done maybe
-  return true;
+  cout << "LINIJA: " << myLine << " NIJE VALIDNA";
+  return false;
 }
 
 string processLabel(string currentLine){
@@ -90,12 +93,13 @@ string processLabel(string currentLine){
       if(symbolTable.find(labelName) != symbolTable.end()) {
         //simbol vec postoji
         symbolTable[labelName].isDefined = true;
+        symbolTable[labelName].sectionName = currentSectionName;
         symbolTable[labelName].sectionNumber = currentSectionNumber;
         symbolTable[labelName].value = locationCounter;
         backpatching(labelName, locationCounter);
 
       }else{
-          SymbolTableEntry newEntry = SymbolTableEntry(labelName,currentSectionNumber,locationCounter,currentSymbolNumber++, false, true,{}, -1);
+          SymbolTableEntry newEntry = SymbolTableEntry(labelName, currentSectionName, currentSectionNumber,locationCounter,currentSymbolNumber++, false, true,{}, -1);
           symbolTable[labelName] = newEntry;
       }
     }
@@ -166,8 +170,8 @@ bool processInstruction(string currentLine){
   }
 
   //DATA INSTRUCTIONS WITH OPERAND
-  std::set<string> jumpInstructions = { "ld", "str" };
-    if (jumpInstructions.find(instructionName) != jumpInstructions.end()) {
+  std::set<string> dataInstructions = { "ldr", "str" };
+    if (dataInstructions.find(instructionName) != dataInstructions.end()) {
     addByteToCode(instructionTable[instructionName]);
     processDataOperand(currentLine);
 
@@ -188,46 +192,59 @@ bool processInstruction(string currentLine){
 }
 
 void generateOutput(string output){
+
+  // if (!std::experimental::filesystem::is_directory("out") || !std::experimental::filesystem::exists("out")) { // Check if src folder exists
+  //   std::experimental::filesystem::create_directory("out"); // create out folder
+  // }
+
   printSymbolTable();
   printSectionTable();
-  // cout << "IDALJE NEMA IZLAZNOG FAJLA";
-  // fstream outputFile;
-  //  outputFile.open(output,ios::out);  // open a file to perform write operation using file object
-  //  if(outputFile.is_open()) //checking whether the file is open
-  //  {
-  //     outputFile<<"Tutorials point \n";   //inserting text
-  //     outputFile.close();    //close the file object
-  //  }
+
+  printSymbolTableInFile(output);
+  printSectionTableInFile(output);
+
 };
 
-
 //HELPER FUNCTIONS
-void handleSymbol(string symbolName, int addend){
+void handleSymbol(string symbolName, string relocationType){
 
-    if(symbolTable.find(symbolName) != symbolTable.end()) {
+  int symbolValue = 0;
+  
+  //ako postoji simbol u tabeli simbola
+  if(symbolTable.find(symbolName) != symbolTable.end()) {
 
-      //ako postoji u tabeli simbola i definisan je
-      if(symbolTable[symbolName].isDefined){
-        addWordToCode(symbolTable[symbolName].value);
-      }
-      else{
-        //ako postoji u tabeli simbola i nije definisan
-        symbolTable[symbolName].flink.push_back(locationCounter);
-        addWordToCode(addend);
-      }
+    //ako postoji u tabeli simbola i definisan je
+    if(symbolTable[symbolName].isDefined){
+      symbolValue = symbolTable[symbolName].value;
+    }
+    else{
+      //ako postoji u tabeli simbola i nije definisan
+      symbolTable[symbolName].flink.push_back(locationCounter);
+    }
+  }//ako ne postoji u tabeli simbola
+  else{
+      symbolTable[symbolName] = SymbolTableEntry(symbolName, currentSectionName, currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
   }
-  else{ //ako ne postoji u tabeli simbola
-      SymbolTableEntry newEntry = SymbolTableEntry(symbolName,currentSectionNumber,0,currentSymbolNumber++, false, false,{locationCounter}, -1);
-      symbolTable[symbolName] = newEntry;
-      addWordToCode(addend);
+
+  //create relocation record (kasnije ukoliko je simbol lokalan prepravices na kraju prolaza i sve gde je lokalno stavices ime sekcije u kojoj su - patchLocalRelocations() )
+  //ipak ce se znati ranije da li je simbol lokalan ili globalan, za to se brini kada naidjes na .global direktivu ukoliko je u UND sekciji sve ok
+  if(symbolTable[symbolName].isGlobal){
+    relocationTable[currentSectionName].push_back(RelocationTableEntry(relocationType, locationCounter, symbolName));
+  }else{
+    relocationTable[currentSectionName].push_back(RelocationTableEntry(relocationType, locationCounter, symbolTable[symbolName].sectionName));
   }
+
+  if(relocationType == "PC_REL") symbolValue -= 2; // zato sto do pocetka naredne instrukcije ima jos dva bajta, a ostalo ce linker da sredi
+  
+  //dodaj symbol u kod
+  addWordToCode(symbolValue);
 }
 
 int findReg(string reg){
     int regVal=0xF;
     if(reg == "sp") regVal = 0x6;
     else if(reg == "pc") regVal = 0x07;
-    else if(reg == "psw") regVal = 0xF;
+    else if(reg == "psw") regVal = 0x8;
     else{
         regVal = stoi(reg.erase(0,1));
     }
@@ -243,13 +260,12 @@ int myStoi(string literal){
   else return stoi(literal);
 }
 
-
 void printSectionTable(){
 
-  cout << "Section table" << endl;
+  cout << endl << endl;
 
    for(auto &itr: sectionTable){
-      cout << "Section name: " + itr.second.sectionName << endl;
+      cout << "Section name: " + itr.second.sectionName << "  |   ";
       SectionTableEntry iterSection = sectionTable[itr.second.sectionName];
       cout << "Section size: " << iterSection.size << endl;
       cout << "Section content: " << endl;
@@ -257,12 +273,26 @@ void printSectionTable(){
       for(int i=0; i< iterSection.code.size(); i++){
         cout << (unsigned int) iterSection.code[i] << "  ";
       }
-      cout << endl;
+      cout << endl << endl;
+      cout<< "Relocation table: " <<endl;
+      list<RelocationTableEntry> relocations = relocationTable[itr.second.sectionName];
+      cout << setw(15) << "RelocationType" 
+          << setw(15) << "Offset "  
+          << setw(15) << "SymbolTableReference " 
+          << endl;
+      for(auto &relocation: relocations){
+          cout << setw(15) << relocation.type 
+                << setw(15) << relocation.offset
+                << setw(15) << relocation.symbolTableRef 
+                << endl;
+      }
    }
 
 }
 
 void printSymbolTable(){
+
+vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
 
 cout << setw(50)<< "Symbol table" << endl;
 cout << setw(15) << "symbolName " 
@@ -274,7 +304,7 @@ cout << setw(15) << "symbolName "
     << setw(15) << "size "
     << endl;
 
- for(auto &itr: symbolTable){
+ for(auto &itr: vec){
   cout << setw(15) << itr.second.symbolName 
     << setw(15) << itr.second.sectionNumber
     << setw(15) << itr.second.value
@@ -285,6 +315,144 @@ cout << setw(15) << "symbolName "
     << endl;
   }
 }
+
+void printSectionTableInFile(string output){
+
+fstream outputFile;
+  outputFile.open("../../bin/"+output,ios::app);  // open a file to perform write operation using file object
+  if(outputFile.is_open()) //checking whether the file is open
+  {
+
+   for(auto &itr: sectionTable){
+      outputFile << "Section name: " + itr.second.sectionName << "  |   ";
+      SectionTableEntry iterSection = sectionTable[itr.second.sectionName];
+      outputFile << "Section size: " << iterSection.size << endl;
+      outputFile << "Section content: " << endl;
+
+      for(int i=0; i< iterSection.code.size(); i++){
+        if(i%20==0) outputFile << endl;
+        outputFile << setw(5) << (unsigned int) iterSection.code[i];
+      }
+      outputFile << endl << endl;
+      outputFile<< "Relocation table: " <<endl;
+      list<RelocationTableEntry> relocations = relocationTable[itr.second.sectionName];
+      outputFile << setw(15) << "RelocationType" 
+          << setw(15) << "Offset "  
+          << setw(15) << "SymbolTableReference " 
+          << endl;
+      for(auto &relocation: relocations){
+          outputFile << setw(15) << relocation.type 
+                << setw(15) << relocation.offset
+                << setw(15) << relocation.symbolTableRef 
+                << endl;
+      }
+   }
+    outputFile.close();    //close the file object
+  }
+
+}
+
+void printSymbolTableInFile(string output){
+
+  vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
+
+  fstream outputFile;
+  outputFile.open("../../bin/"+output,ios::out);  // open a file to perform write operation using file object
+  if(outputFile.is_open()) //checking whether the file is open
+  {
+
+    outputFile << setw(50)<< "Symbol table" << endl;
+    outputFile << setw(15) << "symbolName " 
+        << setw(15) << "sectionNumber "  
+        << setw(15) << "value " 
+        << setw(15) << "symbolNumber "  
+        << setw(15) << "isGlobal "  
+        << setw(15) << "isDefined " 
+        << setw(15) << "size "
+        << endl;
+
+    for(auto &itr: vec){
+      outputFile << setw(15) << itr.second.symbolName 
+        << setw(15) << itr.second.sectionNumber
+        << setw(15) << itr.second.value
+        << setw(15) << itr.second.symbolNumber 
+        << setw(15) << itr.second.isGlobal
+        << setw(15) << itr.second.isDefined
+        << setw(15) << itr.second.size
+        << endl;
+  }
+    outputFile.close();    //close the file object
+  }
+}
+
+// void printSectionTableForLinker(string output){
+
+// fstream outputFile;
+//   outputFile.open("../../bin/"+output,ios::app);  // open a file to perform write operation using file object
+//   if(outputFile.is_open()) //checking whether the file is open
+//   {
+
+//    for(auto &itr: sectionTable){
+//       outputFile << "Section name: " + itr.second.sectionName << "  |   ";
+//       SectionTableEntry iterSection = sectionTable[itr.second.sectionName];
+//       outputFile << "Section size: " << iterSection.size << endl;
+//       outputFile << "Section content: " << endl;
+
+//       for(int i=0; i< iterSection.code.size(); i++){
+//         if(i%20==0) outputFile << endl;
+//         outputFile << setw(5) << (unsigned int) iterSection.code[i];
+//       }
+//       outputFile << endl << endl;
+//       outputFile<< "Relocation table: " <<endl;
+//       list<RelocationTableEntry> relocations = relocationTable[itr.second.sectionName];
+//       outputFile << setw(15) << "RelocationType" 
+//           << setw(15) << "Offset "  
+//           << setw(15) << "SymbolTableReference " 
+//           << endl;
+//       for(auto &relocation: relocations){
+//           outputFile << setw(15) << relocation.type 
+//                 << setw(15) << relocation.offset
+//                 << setw(15) << relocation.symbolTableRef 
+//                 << endl;
+//       }
+//    }
+//     outputFile.close();    //close the file object
+//   }
+
+// }
+
+// void printSymbolTableForLinker(string output){
+
+//   vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
+
+//   fstream outputFile;
+//   outputFile.open(output,ios::out);  // open a file to perform write operation using file object
+//   if(outputFile.is_open()) //checking whether the file is open
+//   {
+
+//     outputFile << setw(50)<< "Symbol table" << endl;
+//     outputFile << setw(15) << "symbolName " 
+//         << setw(15) << "sectionNumber "  
+//         << setw(15) << "value " 
+//         << setw(15) << "symbolNumber "  
+//         << setw(15) << "isGlobal "  
+//         << setw(15) << "isDefined " 
+//         << setw(15) << "size "
+//         << endl;
+
+//     for(auto &itr: vec){
+//       outputFile << setw(15) << itr.second.symbolName 
+//         << setw(15) << itr.second.sectionNumber
+//         << setw(15) << itr.second.value
+//         << setw(15) << itr.second.symbolNumber 
+//         << setw(15) << itr.second.isGlobal
+//         << setw(15) << itr.second.isDefined
+//         << setw(15) << itr.second.size
+//         << endl;
+//   }
+//     outputFile.close();    //close the file object
+//   }
+// }
 
 string trimComments(string currentLine){
 
@@ -309,3 +477,35 @@ string rtrim(const string &s)
 string trim(const string &s) {
     return rtrim(ltrim(s));
 }
+
+vector<pair<string, SymbolTableEntry>> sortMapToVectorPairs(){
+    // create an empty vector of pairs
+    std::vector<pair<string, SymbolTableEntry>> vec;
+ 
+    // copy key-value pairs from the map to the vector
+    std::copy(symbolTable.begin(),
+            symbolTable.end(),
+            std::back_inserter<std::vector<pair<string, SymbolTableEntry>>>(vec));
+ 
+    // sort the vector by increasing the order of its pair's second value
+    // if the second value is equal, order by the pair's first value
+    std::sort(vec.begin(), vec.end(),
+            [](const pair<string, SymbolTableEntry> &l, const pair<string, SymbolTableEntry> &r)
+            {
+                if (l.second.symbolNumber != r.second.symbolNumber) {
+                    return l.second.symbolNumber < r.second.symbolNumber;
+                }
+                return l.first < r.first;
+            });
+ 
+    return vec;
+}
+
+// void patchLocalRelocations(){
+//   for(auto &itr: relocationTable){
+//     string symbol = itr.first;
+//     if(!symbolTable[symbol].isGlobal){
+//       relocationTable[symbol].symbolTableRef = symbolTable[symbol].sectionName;
+//     }
+//   }
+// }

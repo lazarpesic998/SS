@@ -31,7 +31,7 @@ void processGlobalDirective(string currentLine){
         cout<< "***ERROR!*** Symbol already defined!" << endl;
         exit(-1);
       }
-      SymbolTableEntry newEntry = SymbolTableEntry(currVar, -1 ,-1,currentSymbolNumber++, true, false,{}, -1);
+      SymbolTableEntry newEntry = SymbolTableEntry(currVar, "UND", -1 ,-1,currentSymbolNumber++, true, false,{}, -1);
       symbolTable[currVar] = newEntry;
   }
   // printSymbolTable();
@@ -65,7 +65,7 @@ void processExtern(string currentLine){
       cout<< "***ERROR!*** Symbol already defined!" << endl;
       exit(-1);
     }
-    SymbolTableEntry newEntry = SymbolTableEntry(currVar,0,0,currentSymbolNumber++, true, false,{}, -1);
+    SymbolTableEntry newEntry = SymbolTableEntry(currVar,"UND", 0,0,currentSymbolNumber++, true, false,{}, -1);
     symbolTable[currVar] = newEntry;
   }
 }
@@ -105,7 +105,7 @@ void processSection(string currentLine){
   currentSectionNumber = currentSymbolNumber;
   currentSectionName = sectionName;
 
-  SymbolTableEntry newEntry = SymbolTableEntry(sectionName,currentSectionNumber,0,currentSymbolNumber++, false, true,{}, 0);
+  SymbolTableEntry newEntry = SymbolTableEntry(sectionName, currentSectionName, currentSectionNumber,0,currentSymbolNumber++, false, true,{}, 0);
   SectionTableEntry sectionTableEntry = SectionTableEntry(currentSectionName, currentSectionNumber);
 
   //if section exists
@@ -113,10 +113,11 @@ void processSection(string currentLine){
     currentSection = symbolTable.find(sectionName)->second;
     locationCounter = currentSection.size;
   }else{ //if section does not exist yet
-  currentSection = newEntry;
+    currentSection = newEntry;
     symbolTable[sectionName] = newEntry;
     sectionTable[sectionName] = sectionTableEntry;
     locationCounter = 0;
+    relocationTable[currentSectionName] = {};
   }
 }
 
@@ -157,7 +158,7 @@ void processWordSymbolList(string currentLine){
   while(std::regex_search(currentLine, matches, reg)){
       string currVar = matches.str(1);
       currentLine = matches.suffix().str();
-      handleSymbol(currVar, 0);
+      handleSymbol(currVar, "abs");
   }
 }
 

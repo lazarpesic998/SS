@@ -29,7 +29,8 @@ int main(int argc, char** argv)
       }
       inputFile.close(); //close the file object.
    }
-
+   
+   // patchLocalRelocations();
    generateOutput(output);
 
    return 0;

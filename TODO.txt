@@ -1,3 +1,2 @@
-TODO:
-1. Obrati paznju kad skupljas literale da mozes da skupis i hex vrednosti i decimalne vrednosti
-2. Postavi da korisnik moze da koristi pc i sp kao registre
+!!! Kada popravljas tabelu obracanja unapred, uzmi ceo broj a ne samo jedan bajt, i popravi posle dva bajta
+

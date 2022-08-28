@@ -1,4 +1,4 @@
-ASSEMBLER=../../src/assembler
+ASSEMBLER=../../assembler
 LINKER=../linker
 EMULATOR=../emulator
 
