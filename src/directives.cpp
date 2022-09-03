@@ -31,7 +31,7 @@ void processGlobalDirective(string currentLine){
         cout<< "***ERROR!*** Symbol already defined!" << endl;
         exit(-1);
       }
-      SymbolTableEntry newEntry = SymbolTableEntry(currVar, "UND", -1 ,-1,currentSymbolNumber++, true, false,{}, -1);
+      SymbolTableEntry newEntry = SymbolTableEntry(currVar, "UND", -1 ,-1,currentSymbolNumber++, true, false,{}, {}, -1);
       symbolTable[currVar] = newEntry;
   }
   // printSymbolTable();
@@ -65,7 +65,7 @@ void processExtern(string currentLine){
       cout<< "***ERROR!*** Symbol already defined!" << endl;
       exit(-1);
     }
-    SymbolTableEntry newEntry = SymbolTableEntry(currVar,"UND", 0,0,currentSymbolNumber++, true, false,{}, -1);
+    SymbolTableEntry newEntry = SymbolTableEntry(currVar,"UND", 0,0,currentSymbolNumber++, true, false,{}, {}, -1);
     symbolTable[currVar] = newEntry;
   }
 }
@@ -105,7 +105,7 @@ void processSection(string currentLine){
   currentSectionNumber = currentSymbolNumber;
   currentSectionName = sectionName;
 
-  SymbolTableEntry newEntry = SymbolTableEntry(sectionName, currentSectionName, currentSectionNumber,0,currentSymbolNumber++, false, true,{}, 0);
+  SymbolTableEntry newEntry = SymbolTableEntry(sectionName, currentSectionName, currentSectionNumber,0,currentSymbolNumber++, false, true,{}, {}, 0);
   SectionTableEntry sectionTableEntry = SectionTableEntry(currentSectionName, currentSectionNumber);
 
   //if section exists
@@ -117,7 +117,7 @@ void processSection(string currentLine){
     symbolTable[sectionName] = newEntry;
     sectionTable[sectionName] = sectionTableEntry;
     locationCounter = 0;
-    relocationTable[currentSectionName] = {};
+    // relocationTable[currentSectionName] = {};
   }
 }
 
@@ -133,11 +133,11 @@ bool isWord(string currentLine){
 }
 
 void processWord(string currentLine){
-  processWordLiteral(currentLine);
+  if(processWordLiteral(currentLine)) return;
   processWordSymbolList(currentLine);
 }
 
-void processWordLiteral(string currentLine){
+bool processWordLiteral(string currentLine){
   //regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
   regex reg ("((0x\\w+)|[0-9]+)");
   smatch matches;
@@ -148,7 +148,9 @@ void processWordLiteral(string currentLine){
 
       int intVal = myStoi(currVal);
       addWordToCode(intVal);
+      return true;
   }
+  return false;
 }
 
 void processWordSymbolList(string currentLine){

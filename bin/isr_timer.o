@@ -1,0 +1,14 @@
+                                      Symbol table
+  symbolNumber          value     symbolName    sectionName       isGlobal      isDefined           size 
+              0              0            UND            UND              0              0              0
+              1              0            isr            isr              0              1              1
+              2              0      isr_timer            isr              1              1             -1
+
+
+Section name: isr  |   Section size: 1
+Section content: 
+
+20 
+
+Relocation table: 
+ RelocationType        Offset SymbolTableReference 

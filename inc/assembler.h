@@ -15,11 +15,13 @@ using namespace std;
 
 
 struct RelocationTableEntry{
+  string sectionName;
   string type;//0-apsolutno adresiranje, 1 - pc relativno adresiranje
   int offset = 0;
   string symbolTableRef;
 
-  RelocationTableEntry(string type, int offset, string symbolTableRef){
+  RelocationTableEntry(string sectionName, string type, int offset, string symbolTableRef){
+    this->sectionName = sectionName;
     this->type = type;
     this->offset = offset;
     this->symbolTableRef = symbolTableRef;
@@ -37,10 +39,10 @@ struct SymbolTableEntry{
   bool isGlobal = false;
   bool isDefined = false;
   list<int> flink = {};
+  list<string> flinkSections = {};
   int size = -1;
-  list<RelocationTableEntry> reloactions;
 
-  SymbolTableEntry(string symbolName, string sectionName, int sectionNumber, int value, int symbolNumber, bool isGlobal, bool isDefined, list<int> flink, int size){
+  SymbolTableEntry(string symbolName, string sectionName, int sectionNumber, int value, int symbolNumber, bool isGlobal, bool isDefined, list<int> flink, list<string> flinkSections, int size){
     this->symbolName = symbolName;
     this->sectionName = sectionName;
     this->sectionNumber = sectionNumber;
@@ -49,6 +51,7 @@ struct SymbolTableEntry{
     this->isGlobal = isGlobal;
     this->isDefined = isDefined;
     this->flink = flink;
+    this->flinkSections = flinkSections;
     this->size = size;
   }
   SymbolTableEntry(){};
@@ -77,7 +80,8 @@ extern SymbolTableEntry currentSection;
 extern int locationCounter;
 extern bool halt;
 extern map<string, int> instructionTable;
-extern map <string, list<RelocationTableEntry>> relocationTable;
+// extern map <string, list<RelocationTableEntry>> relocationTable;
+extern list<RelocationTableEntry> relocationTable;
 
 void setupAssembler();
 bool processLine(string currentLine);
@@ -98,7 +102,7 @@ void printSymbolTable();
 void printSectionTable();
 void printSymbolTableInFile(string output);
 void printSectionTableInFile(string output);
-void patchLocalRelocations();
+void fixRelocations();
 void generateOutput(string outputFile);
 vector<pair<string, SymbolTableEntry>> sortMapToVectorPairs();
 

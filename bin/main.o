@@ -1,0 +1,84 @@
+                                      Symbol table
+  symbolNumber          value     symbolName    sectionName       isGlobal      isDefined           size 
+              0              0            UND            UND              0              0              0
+              1              0        mathAdd            UND              1              0             -1
+              2              0        mathSub            UND              1              0             -1
+              3              0        mathMul            UND              1              0             -1
+              4              0        mathDiv            UND              1              0             -1
+              5              0       my_start        my_code              1              1             -1
+              6              0         value0        my_data              1              1             -1
+              7              2         value1        my_data              1              1             -1
+              8              4         value2        my_data              1              1             -1
+              9              6         value3        my_data              1              1             -1
+             10              8         value4        my_data              1              1             -1
+             11             10         value5        my_data              1              1             -1
+             12             12         value6        my_data              1              1             -1
+             13              0        my_code        my_code              0              1            206
+             14             14   destinations        my_data              0              1             -1
+             15              0        my_data        my_data              0              1             22
+
+
+Section name: my_code  |   Section size: 206
+Section content: 
+
+a0 6f 00 fe fe a0 0f 00 
+04 00 10 0f a0 0f 00 00 
+00 b0 06 12 a0 0f 00 01 
+00 b0 06 12 30 ff 00 00 
+00 b0 0f 04 00 00 a0 0f 
+00 01 00 b0 06 12 a0 0f 
+00 01 00 b0 06 12 30 f7 
+05 fe ff b0 0f 04 00 00 
+a0 0f 00 08 00 b0 06 12 
+a0 0f 00 0b 00 b0 06 12 
+a0 0f 00 02 00 a0 1f 00 
+0e 00 70 01 30 f0 02 b0 
+0f 04 00 00 a0 0f 00 02 
+00 b0 06 12 a0 0f 00 02 
+00 b0 06 12 a0 0f 00 04 
+00 30 f0 03 0e 00 b0 0f 
+04 00 00 a0 0f 00 05 00 
+b0 06 12 a0 0f 00 19 00 
+b0 06 12 a0 0f 00 06 00 
+a0 1f 00 00 00 70 01 a0 
+00 02 30 f0 01 b0 0f 04 
+00 00 a0 0f 04 00 00 a0 
+1f 04 00 00 a0 2f 04 00 
+00 a0 3f 04 00 00 a0 4f 
+04 00 00 a0 5f 04 00 00 
+a0 6f 04 00 00 00 
+
+Relocation table: 
+ RelocationType        Offset SymbolTableReference 
+            abs             1f        mathAdd
+            abs             24         value1
+         PC_REL             39        mathAdd
+            abs             3e         value2
+            abs             58        my_data
+            abs             62         value3
+            abs             7c        my_data
+            abs             81         value4
+            abs             9b        my_data
+            abs             a8         value5
+            abs             ad         value0
+            abs             b2         value1
+            abs             b7         value2
+            abs             bc         value3
+            abs             c1         value4
+            abs             c6         value5
+            abs             cb         value6
+
+
+Section name: my_data  |   Section size: 16
+Section content: 
+
+00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 00 00 
+00 00 00 00 00 00 
+
+Relocation table: 
+ RelocationType        Offset SymbolTableReference 
+            abs              e        mathAdd
+            abs             10        mathSub
+            abs             12        mathMul
+            abs             14        mathDiv

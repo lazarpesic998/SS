@@ -30,7 +30,7 @@ int main(int argc, char** argv)
       inputFile.close(); //close the file object.
    }
    
-   // patchLocalRelocations();
+   fixRelocations();
    generateOutput(output);
 
    return 0;

@@ -25,13 +25,17 @@ bool registerIndirectJumpWithOffsetLiteral(string currentLine);
 bool registerIndirectJumpWithOffsetSymbol(string currentLine);
 
 //data instructions
-void processDataOperand(string currentLine);
-bool absoluteDataSymbol(string currentLine);
-bool absoluteDataLiteral(string currentLine);
-bool pcRelativeDataSymbol(string currentLine);
-bool memoryDirectDataLiteral(string currentLine);
-bool memoryDirectDataSymbol(string currentLine);
-bool registerDirectData(string currentLine);
-bool registerIndirectData(string currentLine);
-bool registerIndirectDataWithOffsetLiteral(string currentLine);
-bool registerIndirectDataWithOffsetSymbol(string currentLine);
+void processDataOperand(string instructionName, int firstReg, string currentLine);
+bool absoluteDataSymbol(string instructionName, int firstReg, string currentLine);
+bool absoluteDataLiteral(string instructionName, int firstReg, string currentLine);
+bool pcRelativeDataSymbol(string instructionName, int firstReg, string currentLine);
+bool memoryDirectDataLiteral(string instructionName, int firstReg, string currentLine);
+bool memoryDirectDataSymbol(string instructionName, int firstReg, string currentLine);
+bool registerDirectData(string instructionName, int firstReg, string currentLine);
+bool registerIndirectData(string instructionName, int firstReg, string currentLine);
+bool registerIndirectDataWithOffsetLiteral(string instructionName, int firstReg, string currentLine);
+bool registerIndirectDataWithOffsetSymbol(string instructionName, int firstReg, string currentLine);
+int getFirstReg(string currentLine);
+void handleOneRegister(int firstReg);
+bool processPush(string currentLine);
+bool processPop(string currentLine);

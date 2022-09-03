@@ -68,19 +68,19 @@ my_start:
 
 .section my_data
 value0:
-.word 1
+.word 0
 value1:
-.word 2
+.word 0
 value2:
-.word 3
+.word 0
 value3:
-.word 4
+.word 0
 value4:
-.word 222
+.word 0
 value5:
-.word 223
+.word 0
 value6:
-.word 224
+.word 0
 destinations:
 .word mathAdd
 .word mathSub

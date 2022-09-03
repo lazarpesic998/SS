@@ -1,12 +1,8 @@
 .section my_test
 .skip 4
-rasta:
-b: .word a
-jmp *0xA2
-#jmp rasta
-#jmp 0x51
-#jmp 5
-jeq *[r5 + 0xA1]
-jmp *[r5 + rasta]
-.word b
-.skip 3
+value0:
+ldr r0, value0
+ldr r1, 5
+ldr r1, 0x0F5
+
+.end

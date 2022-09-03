@@ -17,7 +17,7 @@ bool isSection(string currentLine);
 void processSection(string currentLine);
 bool isWord(string currentLine);
 void processWord(string currentLine);
-void processWordLiteral(string currentLine);
+bool processWordLiteral(string currentLine);
 void processWordSymbolList(string currentLine);
 bool isSkip(string currentLine);
 void processSkip(string currentLine);

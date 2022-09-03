@@ -19,8 +19,8 @@ void processHalt(string currentLine){
 
 void addByteToCode(unsigned char value){
     sectionTable[currentSectionName].code.push_back(value);
-    sectionTable[currentSectionName].size++;
-    symbolTable[currentSectionName].size++;
+    sectionTable[currentSectionName].size++; //sectionTable
+    symbolTable[currentSectionName].size++; //symbolTable
     locationCounter++;
 }
 
@@ -240,40 +240,48 @@ bool registerIndirectJumpWithOffsetSymbol(string currentLine){
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //DATA OPERAND LD AND STR
-void processDataOperand(string currentLine){
+void processDataOperand(string instructionName, int firstReg, string currentLine){
 
     //neposredno adresiranje
-    if(absoluteDataLiteral(currentLine)) return;
-    if(absoluteDataSymbol(currentLine)) return;
+    if(absoluteDataSymbol(instructionName, firstReg, currentLine)) return;
+    if(absoluteDataLiteral(instructionName, firstReg, currentLine)) return;
 
     //PC relativno adresiranje
-    if(pcRelativeDataSymbol(currentLine)) return;
-
-    //registarsko direktno adresiranje
-    if(registerDirectData(currentLine)) return;
-
-    //memorijsko direktno adresiranje
-    if(memoryDirectDataLiteral(currentLine)) return;
-    if(memoryDirectDataSymbol(currentLine)) return;
-
+    if(pcRelativeDataSymbol(instructionName, firstReg, currentLine)) return;
+    
     //registrarsko indirektno
-    if(registerIndirectData(currentLine)) return;
+    if(registerIndirectData(instructionName, firstReg, currentLine)) return;
 
     //registrarsko indirektno sa pomerajem
-    if(registerIndirectDataWithOffsetLiteral(currentLine)) return;
-    if(registerIndirectDataWithOffsetSymbol(currentLine)) return;
+    if(registerIndirectDataWithOffsetSymbol(instructionName, firstReg, currentLine)) return;
+    if(registerIndirectDataWithOffsetLiteral(instructionName, firstReg, currentLine)) return;
+
+    //registarsko direktno adresiranje
+    if(registerDirectData(instructionName, firstReg, currentLine)) return;
+
+    //memorijsko direktno adresiranje
+    if(memoryDirectDataSymbol(instructionName, firstReg, currentLine)) return;
+    if(memoryDirectDataLiteral(instructionName, firstReg, currentLine)) return;
 }
 
 
-bool absoluteDataLiteral(string currentLine){
+bool absoluteDataLiteral(string instructionName, int firstReg, string currentLine){
     // regex reg (R"((?:^|\s|,)([+-]?[[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
-    regex reg ("$((0x\\w+)|[0-9]+)");
+    regex reg ("\\$((0x\\w+)|[0-9]+)");
 
     smatch matches;
 
     if(std::regex_match(currentLine, matches, reg)){
+        // int regD = 0xF;
+        // int regS = 0xF;
+        // if(instructionName=="ldr") regD = firstReg;
+        // if(instructionName == "str") regS = firstReg;
+        // unsigned char regDescr = createRegByte(regD, regS);
+        
         //RegsDescr
-        addByteToCode(0xFF);
+        unsigned char regDescr = createRegByte(firstReg, 0xF);
+        addByteToCode(regDescr);
+
         //AddrMode
         addByteToCode(0x00);
 
@@ -284,15 +292,16 @@ bool absoluteDataLiteral(string currentLine){
     return false;
 }
 
-bool absoluteDataSymbol(string currentLine){
+bool absoluteDataSymbol(string instructionName, int firstReg, string currentLine){
 
     // regex reg (R"((?:^|\s|,)([+-]?[[:w:]]+(?:\.[[:w:]]+)?)(?=$|\s|,))");
-    regex reg ("$([_a-zA-Z][_a-zA-Z0-9]*)");
+    regex reg ("\\$([_a-zA-Z][_a-zA-Z0-9]*)");
     smatch matches;
 
     if(std::regex_match(currentLine, matches, reg)){
         //RegsDescr
-        addByteToCode(0xFF);
+        unsigned char regDescr = createRegByte(firstReg, 0xF);
+        addByteToCode(regDescr);
         //AddrMode
         addByteToCode(0x00);
         string currVar = matches.str(1);
@@ -303,14 +312,15 @@ bool absoluteDataSymbol(string currentLine){
 }
 
 //memorijsko direktno adresiranje
-bool memoryDirectDataLiteral(string currentLine){
+bool memoryDirectDataLiteral(string instructionName, int firstReg, string currentLine){
     //regex reg (R"((?:^|\s|,)([*][[:digit:]]+(?:\.[[:digit:]]+)?)(?=$|\s|,))");
-    regex reg ("((0x\\w+)|[0-9]+)");
+    regex reg ("((0x\\w+)|^[0-9]+)");
     smatch matches;
 
     if(std::regex_search(currentLine, matches, reg)){
         //RegsDescr
-        addByteToCode(0xFF);
+        unsigned char regDescr = createRegByte(firstReg, 0xF);
+        addByteToCode(regDescr);
         //AddrMode
         addByteToCode(0x04);
         string literal = matches.str(1);
@@ -320,14 +330,15 @@ bool memoryDirectDataLiteral(string currentLine){
     return false;
 }
 
-bool memoryDirectDataSymbol(string currentLine){
+bool memoryDirectDataSymbol(string instructionName, int firstReg, string currentLine){
 
     regex reg ("([_a-zA-Z][_a-zA-Z0-9]*)");
     smatch matches;
 
     if(std::regex_search(currentLine, matches, reg)){
         //RegsDescr
-        addByteToCode(0xFF);
+        unsigned char regDescr = createRegByte(firstReg, 0xF);
+        addByteToCode(regDescr);
         //AddrMode
         addByteToCode(0x04);
         string currVar = matches.str(1);
@@ -338,13 +349,14 @@ bool memoryDirectDataSymbol(string currentLine){
 }
 
 //registarsko direktno sa pomerajem
-bool pcRelativeDataSymbol(string currentLine){
+bool pcRelativeDataSymbol(string instructionName, int firstReg, string currentLine){
     regex reg ("(%[_a-zA-Z][_a-zA-Z0-9]*)");
     smatch matches;
 
     if(std::regex_search(currentLine, matches, reg)){
         //RegsDescr
-        addByteToCode(0xF7);
+        unsigned char regDescr = createRegByte(firstReg, 0x7); //regS = PC
+        addByteToCode(regDescr);
         //AddrMode - registarsko indirektno sa pomerajem
         addByteToCode(0x03);
 
@@ -358,7 +370,7 @@ bool pcRelativeDataSymbol(string currentLine){
 }
 
 //registarsko direktno adresiranje - (3B)
-bool registerDirectData(string currentLine){
+bool registerDirectData(string instructionName, int firstReg, string currentLine){
 
     regex reg ("(sp|pc|psw|r[0-9])");
     smatch matches;
@@ -366,7 +378,7 @@ bool registerDirectData(string currentLine){
     if(std::regex_search(currentLine, matches, reg)){
 
         string currVar = matches.str(1);
-        int regD = 0xF;
+        int regD = firstReg;
         int regS = findReg(currVar);
         unsigned char regDescr = createRegByte(regD, regS);
 
@@ -380,7 +392,7 @@ bool registerDirectData(string currentLine){
 }
 
 //registarsko indirektno adresiranje - (3B)
-bool registerIndirectData(string currentLine){
+bool registerIndirectData(string instructionName, int firstReg, string currentLine){
 
     regex reg ("\\[(sp|pc|psw|r[0-9])\\]");
     smatch matches;
@@ -388,7 +400,7 @@ bool registerIndirectData(string currentLine){
     if(std::regex_search(currentLine, matches, reg)){
 
         string currVar = matches.str(1);
-        int regD = 0xF;
+        int regD = firstReg;
         int regS = findReg(currVar);
         unsigned char regDescr = createRegByte(regD, regS);
 
@@ -402,7 +414,7 @@ bool registerIndirectData(string currentLine){
 }
 
 //registarsko indirektno adresiranje sa pomerajem - (5B)
-bool registerIndirectDataWithOffsetLiteral(string currentLine){
+bool registerIndirectDataWithOffsetLiteral(string instructionName, int firstReg, string currentLine){
     //          \*\[(sp|pc|psw|r[0-9])\+(0x\w+|[0-9]+)\]
     regex reg ("(\\[(sp|pc|psw|r[0-9]) \\+ ((0x\\w+)|[0-9]+)\\])");
     smatch matches;
@@ -411,7 +423,7 @@ bool registerIndirectDataWithOffsetLiteral(string currentLine){
 
         string regSrc = matches.str(2);
         string literal = matches.str(3);
-        int regD = 0xF;
+        int regD = firstReg;
         int regS = findReg(regSrc);
         unsigned char regDescr = createRegByte(regD, regS);
 
@@ -425,7 +437,7 @@ bool registerIndirectDataWithOffsetLiteral(string currentLine){
     return false;
 }
 
-bool registerIndirectDataWithOffsetSymbol(string currentLine){
+bool registerIndirectDataWithOffsetSymbol(string instructionName, int firstReg, string currentLine){
     regex reg ("(\\[(sp|pc|psw|r[0-9]) \\+ ([_a-zA-Z][_a-zA-Z0-9]*)\\])");
     smatch matches;
 
@@ -433,7 +445,7 @@ bool registerIndirectDataWithOffsetSymbol(string currentLine){
 
         string regSrc = matches.str(2);
         string symbol = matches.str(3);
-        int regD = 0xF;
+        int regD = firstReg;
         int regS = findReg(regSrc);
         unsigned char regDescr = createRegByte(regD, regS);
 
@@ -460,7 +472,7 @@ bool processPush(string currentLine){
 
         string currVar = matches.str(1);
         int regD = findReg(currVar);
-        int regS = 0x07; //SP
+        int regS = 0x06; //SP
         unsigned char regDescr = createRegByte(regD, regS);
 
         //RegsDescr
@@ -480,7 +492,7 @@ bool processPop(string currentLine){
     if(std::regex_search(currentLine, matches, reg)){
 
         string currVar = matches.str(1);
-        int regD = 0x07; //SP
+        int regD = 0x06; //SP
         int regS = findReg(currVar);
         unsigned char regDescr = createRegByte(regD, regS);
 
@@ -492,3 +504,19 @@ bool processPop(string currentLine){
     }
     return false;
 }
+
+
+ int getFirstReg(string currentLine){
+    regex reg ("(sp|pc|psw|r[0-9])");
+    smatch matches;
+
+    if(std::regex_search(currentLine, matches, reg)){
+
+        string currVar = matches.str(1);
+        return findReg(currVar);
+    }
+
+    cout << "Greska nije nadjen prvi registar za ldr ili str" << endl;
+    exit(1);
+    
+ }
