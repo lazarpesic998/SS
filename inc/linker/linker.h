@@ -63,3 +63,5 @@ void processLine(string currentLine);
 void processSymbolTable(string currentLine);
 void processCode(string currentLine);
 void processRelocation(string currentLine);
+void linkFiles();
+void resolveRelocations();

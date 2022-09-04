@@ -7,7 +7,10 @@ string currentPhase = "symbolTable";
 string currentSectionName = "UND";
 
 vector< map <string, SectionInfoEntry> > filesInfoList;
+vector < vector<string> > fileSectionInfo;
 int currentFileNumber = -1;
+
+vector<unsigned char> code;
 
 
 int main(int argc, char** argv)
@@ -38,6 +41,10 @@ int main(int argc, char** argv)
                 filesInfoList.push_back(m);
                 currentFileNumber++;
 
+                //initialize fileSectionInfo to empty vector 
+                vector<string> v = {};
+                fileSectionInfo.push_back(v);
+
                 string currentLine;
                 while(getline(inputFile, currentLine)){
                     //cout << currentLine << endl; //read data from file object and put it into string.
@@ -48,7 +55,8 @@ int main(int argc, char** argv)
             }
         }
 
-
+        linkFiles();
+        resolveRelocations();
 
         outputFile.close();    //close the file object
     }
@@ -56,7 +64,6 @@ int main(int argc, char** argv)
 }
 
 void setupLinker(string output){
-
 
 }
 
@@ -67,7 +74,12 @@ void processLine(string currentLine){
 
     
     if(currentPhase == "symbolTable") {processSymbolTable(currentLine); return;}
-    if(currentPhase == "sectionName") {currentPhase = "code"; currentSectionName = currentLine; return;}
+    if(currentPhase == "sectionName") {
+        currentPhase = "code";
+        currentSectionName = currentLine;
+        fileSectionInfo.at(currentFileNumber).push_back(currentSectionName);
+        return;
+    }
     if(currentPhase == "code") {processCode(currentLine);  return;}
     if(currentPhase == "relocations") { processRelocation(currentLine); return;}
 
@@ -142,6 +154,45 @@ void processRelocation(string currentLine){
     RelocationTableEntry newRelocation = RelocationTableEntry(type, offset, symbolName);
     filesInfoList.at(currentFileNumber)[currentSectionName].relocations.push_back(newRelocation);
 
+
+}
+
+void linkFiles(){
+
+    for(int i=0; i < filesInfoList.size(); i++){
+        while( fileSectionInfo.at(i).size() != 0){
+            string currSection = fileSectionInfo.at(i).at(0);
+            fileSectionInfo.at(i).erase(fileSectionInfo.at(i).begin());
+
+            //ako vec nije kopiran kod
+            if(filesInfoList.at(i)[currSection].startingAddress == -1){
+                //copy code and set starting address for section
+                filesInfoList.at(i)[currSection].startingAddress = code.size();
+                for( int j=0; j < filesInfoList.at(i)[currSection].code.size(); j++){
+                    code.push_back(filesInfoList.at(i)[currSection].code.at(j));
+                }
+
+                //check if in any other file is section with the same name
+                for(int k=i; k < filesInfoList.size(); k++){
+                    //ako postoji kopiraj njen sadrzaj u nastavku, proveri da li je vec kopirano ranije
+                    if(filesInfoList.at(k).find(currSection) != filesInfoList.at(k).end())
+                    {
+                        if(filesInfoList.at(k)[currSection].startingAddress == -1){ //za svaki slucaj provera da li je vec kopiran kod
+                            filesInfoList.at(k)[currSection].startingAddress = code.size();
+                            for( int j=0; j < filesInfoList.at(k)[currSection].code.size(); j++){
+                                code.push_back(filesInfoList.at(k)[currSection].code.at(j));
+                            }
+                        }
+                    }
+                }
+            }
+            
+        }
+    }
+
+}
+
+void resolveRelocations(){
 
 }
 
