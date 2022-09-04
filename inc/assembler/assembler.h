@@ -102,6 +102,8 @@ void printSymbolTable();
 void printSectionTable();
 void printSymbolTableInFile(string output);
 void printSectionTableInFile(string output);
+void printSymbolTableForLinker(string output);
+void printSectionTableForLinker(string output);
 void fixRelocations();
 void generateOutput(string outputFile);
 vector<pair<string, SymbolTableEntry>> sortMapToVectorPairs();

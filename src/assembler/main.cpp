@@ -2,7 +2,7 @@
 #include <string>
 #include <fstream>
 
-#include "../inc/assembler.h"
+#include "../../inc/assembler/assembler.h"
 
 using namespace std;
   

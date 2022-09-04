@@ -1,5 +1,5 @@
-#include "../inc/assembler.h"
-#include "../inc/directives.h"
+#include "../../inc/assembler/assembler.h"
+#include "../../inc/assembler/directives.h"
 
 bool isGlobalDirective(string currentLine){
     regex reg ("(.global)");
@@ -160,7 +160,7 @@ void processWordSymbolList(string currentLine){
   while(std::regex_search(currentLine, matches, reg)){
       string currVar = matches.str(1);
       currentLine = matches.suffix().str();
-      handleSymbol(currVar, "abs");
+      handleSymbol(currVar, "ABS");
   }
 }
 

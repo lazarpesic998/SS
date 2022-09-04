@@ -1,6 +1,6 @@
-#include "../inc/assembler.h"
-#include "../inc/instructions.h"
-#include "../inc/directives.h"
+#include "../../inc/assembler/assembler.h"
+#include "../../inc/assembler/instructions.h"
+#include "../../inc/assembler/directives.h"
 
 
 void processHalt(string currentLine){
@@ -87,7 +87,7 @@ bool absoluteJumpSymbol(string currentLine){
         //AddrMode
         addByteToCode(0x00);
         string currVar = matches.str(1);
-        handleSymbol(currVar, "abs");
+        handleSymbol(currVar, "ABS");
         return true;
     }
     return false;
@@ -142,7 +142,7 @@ bool memoryDirectJumpSymbol(string currentLine){
         //AddrMode
         addByteToCode(0x04);
         string currVar = matches.str(1);
-        handleSymbol(currVar, "abs");
+        handleSymbol(currVar, "ABS");
         return true;
     }
     return false;
@@ -232,7 +232,7 @@ bool registerIndirectJumpWithOffsetSymbol(string currentLine){
         addByteToCode(regDescr);
         //AddrMode
         addByteToCode(0x03);
-        handleSymbol(symbol, "abs");
+        handleSymbol(symbol, "ABS");
         return true;
     }
     return false;
@@ -305,7 +305,7 @@ bool absoluteDataSymbol(string instructionName, int firstReg, string currentLine
         //AddrMode
         addByteToCode(0x00);
         string currVar = matches.str(1);
-        handleSymbol(currVar, "abs");
+        handleSymbol(currVar, "ABS");
         return true;
     }
     return false;
@@ -342,7 +342,7 @@ bool memoryDirectDataSymbol(string instructionName, int firstReg, string current
         //AddrMode
         addByteToCode(0x04);
         string currVar = matches.str(1);
-        handleSymbol(currVar, "abs");
+        handleSymbol(currVar, "ABS");
         return true;
     }
     return false;
@@ -453,7 +453,7 @@ bool registerIndirectDataWithOffsetSymbol(string instructionName, int firstReg, 
         addByteToCode(regDescr);
         //AddrMode
         addByteToCode(0x03);
-        handleSymbol(symbol, "abs");
+        handleSymbol(symbol, "ABS");
         return true;
     }
     return false;

@@ -1,6 +1,6 @@
-#include "../inc/assembler.h"
-#include "../inc/directives.h"
-#include "../inc/instructions.h"
+#include "../../inc/assembler/assembler.h"
+#include "../../inc/assembler/directives.h"
+#include "../../inc/assembler/instructions.h"
 
 using namespace std;
 
@@ -218,15 +218,11 @@ bool processInstruction(string currentLine){
 
 void generateOutput(string output){
 
-  // if (!std::experimental::filesystem::is_directory("out") || !std::experimental::filesystem::exists("out")) { // Check if src folder exists
-  //   std::experimental::filesystem::create_directory("out"); // create out folder
-  // }
-
-  //printSymbolTable();
-  //printSectionTable();
-
   printSymbolTableInFile(output);
   printSectionTableInFile(output);
+
+  printSymbolTableForLinker(output);
+  printSectionTableForLinker(output);
 
 };
 
@@ -282,68 +278,10 @@ int myStoi(string literal){
   else return stoi(literal);
 }
 
-void printSectionTable(){
-
-  cout << endl << endl;
-
-   for(auto &itr: sectionTable){
-      cout << "Section name: " + itr.second.sectionName << "  |   ";
-      SectionTableEntry iterSection = sectionTable[itr.second.sectionName];
-      cout << "Section size: " << iterSection.size << endl;
-      cout << "Section content: " << endl;
-
-      for(int i=0; i< iterSection.code.size(); i++){
-        cout << (unsigned int) iterSection.code[i] << "  ";
-      }
-      cout << endl << endl;
-      cout<< "Relocation table: " <<endl;
-      // list<RelocationTableEntry> relocations = relocationTable[itr.second.sectionName];
-      cout << setw(15) << "RelocationType" 
-          << setw(15) << "Offset "  
-          << setw(15) << "SymbolTableReference " 
-          << endl;
-      for(auto &relocation: relocationTable){
-        if(relocation.sectionName == itr.second.sectionName){
-          cout << setw(15) << relocation.type 
-            << setw(15) << relocation.offset
-            << setw(15) << relocation.symbolTableRef 
-            << endl;
-        }
-      }
-   }
-
-}
-
-void printSymbolTable(){
-
-vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
-
-cout << setw(50)<< "Symbol table" << endl;
-cout << setw(15) << "symbolName " 
-    << setw(15) << "sectionName "  
-    << setw(15) << "value " 
-    << setw(15) << "symbolNumber "  
-    << setw(15) << "isGlobal "  
-    << setw(15) << "isDefined " 
-    << setw(15) << "size "
-    << endl;
-
- for(auto &itr: vec){
-  cout  << setw(15) << itr.second.symbolNumber
-    << setw(15) << itr.second.symbolName 
-    << setw(15) << itr.second.value
-    << setw(15) << itr.second.sectionName
-    << setw(15) << itr.second.isGlobal
-    << setw(15) << itr.second.isDefined
-    << setw(15) << itr.second.size
-    << endl;
-  }
-}
-
 void printSectionTableInFile(string output){
 
-fstream outputFile;
-  outputFile.open("../../bin/"+output,ios::app);  // open a file to perform write operation using file object
+  fstream outputFile;
+  outputFile.open("../../obj/"+output,ios::app);  // open a file to perform write operation using file object
   //outputFile.open("../../bin/"+output,ios::out);
   if(outputFile.is_open()) //checking whether the file is open
   {
@@ -377,7 +315,6 @@ fstream outputFile;
    }
     outputFile.close();    //close the file object
   }
-
 }
 
 void printSymbolTableInFile(string output){
@@ -385,19 +322,19 @@ void printSymbolTableInFile(string output){
   vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
 
   fstream outputFile;
-  outputFile.open("../../bin/"+output,ios::out);  // open a file to perform write operation using file object
+  outputFile.open("../../obj/"+output,ios::out);  // open a file to perform write operation using file object
   if(outputFile.is_open()) //checking whether the file is open
   {
 
     outputFile << setw(50)<< "Symbol table" << endl;
     outputFile << setw(15) << "symbolNumber " 
-        << setw(15) << "value " 
-        << setw(15) << "symbolName "  
-        << setw(15) << "sectionName "  
-        << setw(15) << "isGlobal "  
-        << setw(15) << "isDefined " 
-        << setw(15) << "size "
-        << endl;
+                << setw(15) << "value " 
+                << setw(15) << "symbolName "  
+                << setw(15) << "sectionName "  
+                << setw(15) << "isGlobal "  
+                << setw(15) << "isDefined " 
+                << setw(15) << "size "
+                << endl;
 
     for(auto &itr: vec){
       outputFile << setw(15) << itr.second.symbolNumber
@@ -413,73 +350,68 @@ void printSymbolTableInFile(string output){
   }
 }
 
-// void printSectionTableForLinker(string output){
+void printSymbolTableForLinker(string output){
 
-// fstream outputFile;
-//   outputFile.open("../../bin/"+output,ios::app);  // open a file to perform write operation using file object
-//   if(outputFile.is_open()) //checking whether the file is open
-//   {
+  vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
 
-//    for(auto &itr: sectionTable){
-//       outputFile << "Section name: " + itr.second.sectionName << "  |   ";
-//       SectionTableEntry iterSection = sectionTable[itr.second.sectionName];
-//       outputFile << "Section size: " << iterSection.size << endl;
-//       outputFile << "Section content: " << endl;
+  fstream outputFile;
+  outputFile.open("../../bin/"+output,ios::out);  // open a file to perform write operation using file object
+  if(outputFile.is_open()) //checking whether the file is open
+  {
 
-//       for(int i=0; i< iterSection.code.size(); i++){
-//         if(i%20==0) outputFile << endl;
-//         outputFile << setw(5) << (unsigned int) iterSection.code[i];
-//       }
-//       outputFile << endl << endl;
-//       outputFile<< "Relocation table: " <<endl;
-//       list<RelocationTableEntry> relocations = relocationTable[itr.second.sectionName];
-//       outputFile << setw(15) << "RelocationType" 
-//           << setw(15) << "Offset "  
-//           << setw(15) << "SymbolTableReference " 
-//           << endl;
-//       for(auto &relocation: relocations){
-//           outputFile << setw(15) << relocation.type 
-//                 << setw(15) << relocation.offset
-//                 << setw(15) << relocation.symbolTableRef 
-//                 << endl;
-//       }
-//    }
-//     outputFile.close();    //close the file object
-//   }
+    outputFile << "Symbol table" << endl;
 
-// }
-
-  void printSymbolTableForLinker(string output){
-
-    vector<pair<string, SymbolTableEntry>> vec = sortMapToVectorPairs();
-
-    fstream outputFile;
-    outputFile.open(output,ios::out);  // open a file to perform write operation using file object
-    if(outputFile.is_open()) //checking whether the file is open
-    {
-
-      outputFile << "Symbol table" << endl;
-
-      for(auto &itr: vec){
-        if(itr.second.isGlobal || itr.second.symbolName == itr.second.sectionName){
-          outputFile <<  itr.second.symbolName << '|'
-                    <<  itr.second.sectionNumber << '|'
+    for(auto &itr: vec){
+      if(itr.second.isGlobal || itr.second.symbolName == itr.second.sectionName){
+        outputFile <<  itr.second.symbolNumber << '|'
                     <<  itr.second.value << '|'
-                    <<  itr.second.symbolNumber << '|'
+                    <<  itr.second.symbolName << '|'
+                    <<  itr.second.sectionName << '|'
                     <<  itr.second.isDefined << '|'
                     <<  itr.second.size
                     << endl;
+      }
+  }
+    outputFile << "###" << endl;
+    outputFile.close();    //close the file object
+  }
+}
+
+
+void printSectionTableForLinker(string output){
+
+  fstream outputFile;
+  outputFile.open("../../bin/"+output,ios::app);  // open a file to perform write operation using file object
+  //outputFile.open("../../bin/"+output,ios::out);
+  if(outputFile.is_open()) //checking whether the file is open
+  {
+   for(auto &itr: sectionTable){
+      outputFile << itr.second.sectionName << endl;
+      SectionTableEntry iterSection = sectionTable[itr.second.sectionName];
+
+      for(int i=0; i< iterSection.code.size(); i++){
+        // if(i%8==0) outputFile << endl;
+        outputFile << setw(2) << setfill('0') << hex << (unsigned int) iterSection.code[i] << "|";
+      }
+      outputFile << endl;
+      outputFile<< "Relocation table: " <<endl;
+      for(auto &relocation: relocationTable){
+        if(relocation.sectionName == itr.second.sectionName){
+          outputFile << relocation.type << "|"
+            << relocation.offset << "|"
+            << relocation.symbolTableRef 
+            << endl;
         }
-        
-    }
-      outputFile.close();    //close the file object
-    }
+      }
+      outputFile << "###" << endl;
+   }
+    outputFile.close();    //close the file object
   }
 
+}
+
 string trimComments(string currentLine){
-
   return currentLine.substr(0, currentLine.find('#'));
-
 }
 
 const std::string WHITESPACE = " \n\r\t\f\v";
