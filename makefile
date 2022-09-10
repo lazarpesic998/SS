@@ -22,8 +22,8 @@ all: $(ASSEMBLER) $(LINKER)
 
 $(ASSEMBLER): $(SRCDIR_ASS)/*.cpp
 	$(CC) -o $@ $^
-	mkdir $(OBJDIR)
-	mkdir $(BINDIR)
+	mkdir -p $(OBJDIR)
+	mkdir -p $(BINDIR)
 $(LINKER): $(SRCDIR_LINKER)/*.cpp
 	$(CC) -o $@ $^
 

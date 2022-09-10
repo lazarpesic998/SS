@@ -25,14 +25,16 @@ struct SymbolTableEntry{
   int symbolNumber;
   bool isDefined = false;
   int size = -1;
+  int currentFileNumber = -1;
 
-  SymbolTableEntry(int symbolNumber, int value, string symbolName, string sectionName, bool isDefined, int size){
+  SymbolTableEntry(int symbolNumber, int value, string symbolName, string sectionName, bool isDefined, int size, int currentFileNumber){
     this->symbolName = symbolName;
     this->sectionName = sectionName;
     this->value = value;
     this->symbolNumber = symbolNumber;
     this->isDefined = isDefined;
     this->size = size;
+    this->currentFileNumber = currentFileNumber;
   }
   SymbolTableEntry(){};
 };
@@ -65,3 +67,5 @@ void processCode(string currentLine);
 void processRelocation(string currentLine);
 void linkFiles();
 void resolveRelocations();
+void checkForUndefinedSymbols();
+void patchSymbolValues();

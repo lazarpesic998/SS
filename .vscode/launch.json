@@ -9,13 +9,14 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/linker",
+        //"args": ["-o", "ivt.o",  "../testovi/nivo-a/ivt.s"],
         "args": ["-hex", "-o", "program.hex", "ivt.o", "math.o", "main.o", "isr_reset.o", "isr_terminal.o", "isr_timer.o", "isr_user0.o"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],
         "externalConsole": false,
         "MIMode": "gdb",
-        "setupCommands": [
+        "setupCommands": [ 
             {
                 "description": "Enable pretty-printing for gdb",
                 "text": "-enable-pretty-printing",

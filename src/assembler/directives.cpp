@@ -133,8 +133,9 @@ bool isWord(string currentLine){
 }
 
 void processWord(string currentLine){
+  if(processWordSymbolList(currentLine)) return;
   if(processWordLiteral(currentLine)) return;
-  processWordSymbolList(currentLine);
+  
 }
 
 bool processWordLiteral(string currentLine){
@@ -153,15 +154,18 @@ bool processWordLiteral(string currentLine){
   return false;
 }
 
-void processWordSymbolList(string currentLine){
+bool processWordSymbolList(string currentLine){
   regex reg ("([_a-zA-Z][_a-zA-Z0-9]*)");
   smatch matches;
+  bool retVal = false;
 
   while(std::regex_search(currentLine, matches, reg)){
       string currVar = matches.str(1);
       currentLine = matches.suffix().str();
       handleSymbol(currVar, "ABS");
+      retVal = true;
   }
+  return retVal;
 }
 
 bool isSkip(string currentLine){

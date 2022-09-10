@@ -21,6 +21,8 @@ int main(int argc, char** argv)
    }
 
    string option = argv[1];
+   if(option == "-relocatable") { cout << "Option not supported yet! " << endl; exit(0);}
+   if(option != "-hex") { cout << "Option must be specified!" << endl; exit(0);}
    string output = argv[3];
    fstream inputFile;
 
@@ -56,8 +58,22 @@ int main(int argc, char** argv)
         }
 
         linkFiles();
+        checkForUndefinedSymbols();
+        patchSymbolValues();
         resolveRelocations();
 
+
+        //generate output
+        for(int i=0; i < code.size(); i++){
+            if(i % 8 == 0){
+                if(i != 0) outputFile << endl;
+                outputFile << setw(4) << setfill('0') << hex << i << ": ";
+                outputFile << setw(2) << setfill('0') << hex << (unsigned int) code[i] << " ";
+            }else{
+                outputFile << setw(2) << setfill('0') << hex << (unsigned int) code[i] << " ";
+            }
+
+        }
         outputFile.close();    //close the file object
     }
     return 0;
@@ -112,16 +128,18 @@ void processSymbolTable(string currentLine){
      if(symbolTable.find(symbolName) != symbolTable.end() && symbolName != sectionName) {
 
         if(symbolTable[symbolName].isDefined && isDefined){
-            cout<< "***ERROR!*** MULTIPLE SYMBOL DEFINITION!" << endl;
+            cout<< "***ERROR!*** MULTIPLE SYMBOL DEFINITION! symbol: " << symbolName << endl;
             exit(-1);
         }else if(isDefined){
             symbolTable[symbolName].value = symbolValue;
             symbolTable[symbolName].sectionName = sectionName;
             symbolTable[symbolName].isDefined = isDefined;
+            symbolTable[symbolName].currentFileNumber = currentFileNumber;
         }
+        return;
     }
 
-    SymbolTableEntry newEntry = SymbolTableEntry(symbolNumber, symbolValue, symbolName, sectionName, isDefined, size);
+    SymbolTableEntry newEntry = SymbolTableEntry(symbolNumber, symbolValue, symbolName, sectionName, isDefined, size, currentFileNumber);
     symbolTable[symbolName] = newEntry;
 
 }
@@ -192,8 +210,58 @@ void linkFiles(){
 
 }
 
+void checkForUndefinedSymbols(){
+    for(auto &itr: symbolTable){
+        if(itr.first == "UND") continue;
+        if(symbolTable[itr.first].sectionName == "UND"){
+            cout << "***ERROR!*** Symbol " << itr.first << " is used but never defined" << endl;
+            exit(1);
+        }
+    }
+}
+
+void patchSymbolValues(){
+    for(auto &itr: symbolTable){
+        if(itr.second.symbolName != itr.second.sectionName){
+             symbolTable[itr.second.symbolName].value += filesInfoList.at(itr.second.currentFileNumber)[itr.second.sectionName].startingAddress;
+        }
+    }
+}
+
 void resolveRelocations(){
 
+    //for every file
+    for(int i=0; i<filesInfoList.size(); i++){
+
+        //for every section in file
+        for(auto &itr: filesInfoList.at(i)){
+            //for every relocation in section
+            while(itr.second.relocations.size() != 0){
+                RelocationTableEntry relocation = itr.second.relocations.at(0);
+                itr.second.relocations.erase(itr.second.relocations.begin());
+
+                //fix relocation
+                int value;
+                int codeValue = (code.at(itr.second.startingAddress + relocation.offset + 1) << 8) | (code.at(itr.second.startingAddress + relocation.offset) && 0xFF);
+
+                //for global symbols on current value add symbol value
+                if(symbolTable[relocation.symbolTableRef].symbolName != symbolTable[relocation.symbolTableRef].sectionName){
+                    value = codeValue + symbolTable[relocation.symbolTableRef].value;
+                }else{
+                    //for local symbols on current value add section start from the section where symbol is defined
+                    int whereDefinedAddress = filesInfoList.at(symbolTable[relocation.symbolTableRef].currentFileNumber)[relocation.symbolTableRef].startingAddress;
+                    value = codeValue + whereDefinedAddress;
+                }
+            
+                //repair code
+                unsigned char dataHigh = (unsigned) value >> 8;
+                unsigned char dataLow = (unsigned) value & 0xFF;
+                code.at(itr.second.startingAddress + relocation.offset) = dataLow;
+                code.at(itr.second.startingAddress + relocation.offset + 1) = dataHigh;
+            }    
+        }
+        
+    }
 }
 
 void generateLinkerOutput(string output){
