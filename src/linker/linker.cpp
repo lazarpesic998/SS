@@ -240,9 +240,9 @@ void resolveRelocations(){
                 RelocationTableEntry relocation = itr.second.relocations.at(0);
                 itr.second.relocations.erase(itr.second.relocations.begin());
 
-                //fix relocation
+                //fix relocation &&
                 int value;
-                int codeValue = (code.at(itr.second.startingAddress + relocation.offset + 1) << 8) | (code.at(itr.second.startingAddress + relocation.offset) && 0xFF);
+                int codeValue = (code.at(itr.second.startingAddress + relocation.offset + 1) << 8) | (code.at(itr.second.startingAddress + relocation.offset) & 0xFF);
 
                 //for global symbols on current value add symbol value
                 if(symbolTable[relocation.symbolTableRef].symbolName != symbolTable[relocation.symbolTableRef].sectionName){
@@ -262,11 +262,4 @@ void resolveRelocations(){
         }
         
     }
-}
-
-void generateLinkerOutput(string output){
-    ofstream myfile;
-    myfile.open (output, fstream::app);
-    myfile << output;
-    myfile.close();
 }

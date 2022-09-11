@@ -492,8 +492,8 @@ bool processPop(string currentLine){
     if(std::regex_search(currentLine, matches, reg)){
 
         string currVar = matches.str(1);
-        int regD = 0x06; //SP
-        int regS = findReg(currVar);
+        int regD = findReg(currVar);
+        int regS = 0x06; //SP
         unsigned char regDescr = createRegByte(regD, regS);
 
         //RegsDescr
