@@ -40,7 +40,10 @@ void processSHR();
 
 
 //FETCHING INSTRUCTIONS
- void fetchRegisters();
+void fetchRegisters();
+string fetchAddrMode();
+short fetchTwoBytesFromMemory(int location);
+short fetchOperand();
 
  //HELPER FUNCTIONS
  void setFlag(short flag, bool isFlag);

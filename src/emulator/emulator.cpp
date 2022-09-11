@@ -3,10 +3,12 @@
 
 unsigned char memory[65536] = {0};
 short r[9] = {0};
-string currentInstruction = 0;
+string currentInstruction = "";
 
 int regD;
 int regS;
+string addrMode;
+short operand;
 
 map<short, string> instructionMap = {
   {0x00, "halt"}, //zaustavaljanje procesora
@@ -42,6 +44,17 @@ map<short, string> instructionMap = {
   //load i store
   {0xA0, "ldr"},
   {0xB0, "str"}
+};
+
+map<short, string> addrModeMap = {
+   {0x00, "ABS"},
+   {0x01, "REG_DIR"},
+   {0x05, "PC_REL"}, //registarsko direktno sa pomerajem
+   {0x02, "REG_INDIR"},
+   {0x03, "REG_INDIR_OFFSET"},
+   {0x04, "MEM_DIR"},
+   {0x12, "PUSH"},
+   {0x42, "POP"}
 };
 
 short flagZ = 1;
@@ -80,8 +93,8 @@ int main(int argc, char** argv)
          }
       }
 
-      // resetProcessor();
-      // emulate();
+      resetProcessor();
+      emulate();
 
       inputFile.close(); //close the file object.
    }
@@ -138,9 +151,24 @@ void emulate(){
       if(currentInstruction == "shr"){ processSHR(); continue; }
 
 
+      //JUMP INSTRUCTIONS WITH OPERAND
+      std::set<string> operandInstructions = { "call", "jmp", "jeq", "jne", "jgt", "ldr", "str"};
+      if (operandInstructions.find(currentInstruction) != operandInstructions.end()) {
+         fetchRegisters();
+         addrMode = fetchAddrMode();
+         operand = fetchOperand();
 
+         if(addrMode == "PUSH"); //TODO:
+         if(addrMode == "POP"); //TODO:
+      }
+      break;
    }
 }
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 short popStack(){
 
@@ -300,6 +328,48 @@ void processSHR(){
    regD = (memory[r[7]] >> 4) & 0xF;
    regS = memory[r[7]] & 0xF;
    r[7]++;
+ }
+
+ string fetchAddrMode(){
+   return addrModeMap[ memory[r[7]++] ];
+ }
+
+ short fetchOperand(){
+   //5B operand
+   if(addrMode == "ABS") {
+      operand = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+   }
+   if(addrMode == "MEM_DIR"){
+      short offset = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+      operand = fetchTwoBytesFromMemory(offset); 
+   } 
+   if(addrMode == "PC_REL"){
+      short offset = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+      operand = fetchTwoBytesFromMemory(r[7] + offset);
+   }
+   if(addrMode == "REG_INDIR_OFFSET"){
+      short offset = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+      operand = fetchTwoBytesFromMemory(r[regS] + offset); //regS from assembler
+   }
+   //3B operand
+   if(addrMode == "REG_DIR"){
+      operand = r[regS];
+   }
+   if(addrMode == "REG_INDIR"){
+      operand = fetchTwoBytesFromMemory( memory[ r[regS] ]);
+   }
+
+   return operand;
+ }
+
+ short fetchTwoBytesFromMemory(int location){
+   unsigned char dataLow = memory[location];
+   unsigned char dataHigh = memory[location+1];
+   return (dataHigh << 8) | (dataLow & 0xFF);
  }
 
  //HELPER FUNCTIONS

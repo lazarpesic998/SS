@@ -38,7 +38,7 @@ void processJumpOperand(string currentLine){
     if(absoluteJumpLiteral(currentLine)) return;
     if(absoluteJumpSymbol(currentLine)) return;
 
-    //PC relativno adresiranje
+    //PC relativno adresiranje (registarsko direktno sa pomerajem)
     if(pcRelativeJumpSymbol(currentLine)) return;
 
     //registarsko direktno adresiranje
