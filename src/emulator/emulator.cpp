@@ -1,9 +1,8 @@
 #include "../../inc/emulator/emulator.h"
 
-
 unsigned char memory[65536] = {0};
-short r[9] = {0};
-string currentInstruction = "";
+unsigned short r[9] = {0};
+string currentInstruction = "NO_INSTR";
 
 int regD;
 int regS;
@@ -21,9 +20,7 @@ map<short, string> instructionMap = {
   {0x51, "jeq"},
   {0x52, "jne"},
   {0x53, "jgt"},
-  //push, pop
-//   {0xB0, "push"},
-//   {0xA0, "pop"},
+
  //instrukcija atomicne zamene vrednosti
   {0x60, "xchg"},
   //aritmeticke operacije
@@ -95,7 +92,7 @@ int main(int argc, char** argv)
 
       resetProcessor();
       emulate();
-
+      generateOutput();
       inputFile.close(); //close the file object.
    }
    return 0;
@@ -116,7 +113,8 @@ void emulate(){
 
    while(true){
       //fetchInstruction
-      currentInstruction = instructionMap[r[7]];
+      currentInstruction = instructionMap[memory[ r[7] ] ];
+      cout << currentInstruction << endl;
       r[7]++;
 
       //NO OPERANDS INSTRUCTIONS
@@ -156,16 +154,26 @@ void emulate(){
       if (operandInstructions.find(currentInstruction) != operandInstructions.end()) {
          fetchRegisters();
          addrMode = fetchAddrMode();
-         operand = fetchOperand();
+         if(currentInstruction != "str") operand = fetchOperand();
 
-         if(addrMode == "PUSH"); //TODO:
-         if(addrMode == "POP"); //TODO:
+         if(addrMode == "PUSH") { pushStack(memory[r[regD]]); continue; }
+         if(addrMode == "POP") { memory[r[regD]] = popStack(); continue; }
+
+         if(currentInstruction == "call"){processCALL(); continue; }
+         if(currentInstruction == "jmp"){ processJMP(); continue; }
+         if(currentInstruction == "jeq"){ processJEQ(); continue; }
+         if(currentInstruction == "jne"){ processJNE(); continue; }
+         if(currentInstruction == "jgt"){ processJGT(); continue; }
+         if(currentInstruction == "ldr"){ processLDR(); continue; }
+         if(currentInstruction == "str"){ processSTR(); continue; }
+      }else{
+         cout << "INSTRUCTION DOES NOT EXIST: " << currentInstruction << r[7] << endl;
+         exit(1);
       }
-      break;
+
+      
    }
 }
-
-
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,9 +190,11 @@ short popStack(){
 }
 
 void pushStack(short value){
-  memory[ r[6] - 1 ] = (value >> 8) & 0xFF; //data high
-  memory[ r[6] - 2 ] = value & 0xFF; //data low
-  r[6] -= 2;
+
+   r[6] -= 2;  
+   memory[ r[6] + 1 ] = (value >> 8) & 0xFF; //data high
+   memory[ r[6] ] = value & 0xFF; //data low
+
 }
 
 //NO OPERANDS INSTRUCTIONS
@@ -200,15 +210,17 @@ void processRET(){
    r[7] = popStack();
 }
 
-//INSTRUCTIONS WITH REGISTARS ONLY
+//INSTRUCTIONS WITH REGISTERS ONLY
 void processINT(){
 
    fetchRegisters();
+   //push pc
+   pushStack(r[7]);
    //push psw
    pushStack(r[8]);
    //pc <= mem16[(regD mod 8)*2]; 
    // TODO: check maybe r[regD]
-   r[7] = memory[ (r[regD] % 8) * 2 ];
+   r[7] = fetchTwoBytesFromMemory((r[regD] % 8) * 2);
 }
 
 void processXCHG(){
@@ -321,7 +333,38 @@ void processSHR(){
    else setFlag(flagC, false);
 }
 
-
+//OPERATIONS WITH OPERANDS
+void processCALL(){
+   //push pc; pc <= operand;
+   pushStack(r[7]);
+   r[7] = operand;
+}
+void processJMP(){
+   //pc <= operand;
+   r[7] = operand;
+}
+void processJEQ(){
+   //if (equal) pc <= operand
+   if(r[8] & flagZ){
+      r[7] = operand;
+   }
+}
+void processJNE(){
+   //if (not equal) pc <= operand; 
+   if( !(r[8] & flagZ) ){
+      r[7] = operand;
+   }
+}
+void processJGT(){
+   //if (signed greater) pc <= operand; 
+   if( !(r[8] & flagZ) && !(r[8] & flagN) ){
+      r[7] = operand;
+   }
+}
+void processLDR(){
+   //regD <= operand;
+   r[regD] = operand;
+}
 
 //FETCHING INSTRUCTIONS
  void fetchRegisters(){
@@ -372,8 +415,56 @@ void processSHR(){
    return (dataHigh << 8) | (dataLow & 0xFF);
  }
 
+  void processSTR(){
+   // //5B operand
+   if(addrMode == "ABS") {
+      cout << "STORE WITH ABSOLUTE ADRESSING NOT ALOWED" << endl;
+      exit(1);
+   }
+   if(addrMode == "MEM_DIR"){
+      short offset = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+      storeToMemory(r[regD], offset);
+   } 
+   if(addrMode == "PC_REL"){
+      short offset = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+      storeToMemory(r[regD], r[7] + offset);
+   }
+   if(addrMode == "REG_INDIR_OFFSET"){
+      short offset = fetchTwoBytesFromMemory(r[7]);
+      r[7] += 2; //pc = pc + 2
+      storeToMemory(r[regD], r[regS] + offset);
+   }
+   // //3B operand
+   if(addrMode == "REG_DIR"){
+      r[regS] = r[regD];
+   }
+   if(addrMode == "REG_INDIR"){
+      storeToMemory(r[regD], r[regS]);
+   }
+
+   // return operand;
+ }
+
+ void storeToMemory(short value, int location){
+   unsigned char dataHigh = (unsigned) value >> 8;
+   unsigned char dataLow = (unsigned) value & 0xFF;
+   memory[location] = dataLow;
+   memory[location + 1] = dataHigh;
+ }
+
  //HELPER FUNCTIONS
  void setFlag(short flag, bool isFlag){
    if(isFlag) r[8] |= flag;
    else r[8] &= ~flag;
  }
+
+
+void generateOutput(){
+   cout << "------------------------------------------------" << endl;
+   cout << "Emulated processor executed halt instruction" << endl;
+   cout << "Emulated processor state: psw=0b" << std::bitset<16>(r[7]) << endl;
+   cout<< hex << " r0=0x" << setw(4) << setfill('0') << r[0] << " r1=0x" << setw(4) << setfill('0') << r[1] << " r2=0x" << setw(4) << setfill('0') <<  r[2] << " r3=0x" << setw(4) << setfill('0') <<  r[3] << endl;
+   cout<< hex << " r4=0x" << setw(4) << setfill('0') << r[4] << " r5=0x" << setw(4) << setfill('0') << r[5] << " r6=0x" << setw(4) << setfill('0') << r[6] << " r7=0x" << setw(4) << setfill('0') << r[7] << endl;
+}
