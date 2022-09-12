@@ -242,16 +242,36 @@ void resolveRelocations(){
 
                 //fix relocation &&
                 int value;
-                int codeValue = (code.at(itr.second.startingAddress + relocation.offset + 1) << 8) | (code.at(itr.second.startingAddress + relocation.offset) & 0xFF);
+                int high = (int8_t) code.at(itr.second.startingAddress + relocation.offset + 1);
+                int low = (int8_t) code.at(itr.second.startingAddress + relocation.offset) & 0xFF;
+                int codeValue = (high << 8) | (low);
 
-                //for global symbols on current value add symbol value
-                if(symbolTable[relocation.symbolTableRef].symbolName != symbolTable[relocation.symbolTableRef].sectionName){
-                    value = codeValue + symbolTable[relocation.symbolTableRef].value;
-                }else{
-                    //for local symbols on current value add section start from the section where symbol is defined
-                    int whereDefinedAddress = filesInfoList.at(symbolTable[relocation.symbolTableRef].currentFileNumber)[relocation.symbolTableRef].startingAddress;
-                    value = codeValue + whereDefinedAddress;
+
+              
+
+                if(relocation.type == "PC_REL"){
+
+                      //for global symbols on current value add symbol value
+                    if(symbolTable[relocation.symbolTableRef].symbolName != symbolTable[relocation.symbolTableRef].sectionName){
+                        value = codeValue + symbolTable[relocation.symbolTableRef].value;
+                    }else{
+                        //for local symbols on current value add section start from the section where symbol is defined
+                        int whereDefinedAddress = filesInfoList.at(symbolTable[relocation.symbolTableRef].currentFileNumber)[relocation.symbolTableRef].startingAddress;
+                        value = codeValue + whereDefinedAddress;
+                    }
+                    value -= itr.second.startingAddress + relocation.offset;
+                } else {
+                    //for global symbols on current value add symbol value
+                    if(symbolTable[relocation.symbolTableRef].symbolName != symbolTable[relocation.symbolTableRef].sectionName){
+                        value = codeValue + symbolTable[relocation.symbolTableRef].value;
+                    }else{
+                        //for local symbols on current value add section start from the section where symbol is defined
+                        int whereDefinedAddress = filesInfoList.at(symbolTable[relocation.symbolTableRef].currentFileNumber)[relocation.symbolTableRef].startingAddress;
+                        value = codeValue + whereDefinedAddress;
+                    }
+                
                 }
+
             
                 //repair code
                 unsigned char dataHigh = (unsigned) value >> 8;

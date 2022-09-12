@@ -110,7 +110,8 @@ string processLabel(string currentLine){
 void backpatching(string labelName, int value){
 
 //reapair symbols in code which were not defined before
-  for(int i=0; i<symbolTable[labelName].flink.size(); i++){
+  int size = symbolTable[labelName].flink.size();
+  for(int i=0; i < size; i++){
     int locationToRepair = symbolTable[labelName].flink.front();
     symbolTable[labelName].flink.pop_front();
     string sectionToRapair = symbolTable[labelName].flinkSections.front();

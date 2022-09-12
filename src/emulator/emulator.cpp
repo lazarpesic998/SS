@@ -114,7 +114,9 @@ void emulate(){
    while(true){
       //fetchInstruction
       currentInstruction = instructionMap[memory[ r[7] ] ];
-      cout << currentInstruction << endl;
+      // generateOutput();
+      // cout << currentInstruction << endl;
+      
       r[7]++;
 
       //NO OPERANDS INSTRUCTIONS
@@ -156,8 +158,8 @@ void emulate(){
          addrMode = fetchAddrMode();
          if(currentInstruction != "str") operand = fetchOperand();
 
-         if(addrMode == "PUSH") { pushStack(memory[r[regD]]); continue; }
-         if(addrMode == "POP") { memory[r[regD]] = popStack(); continue; }
+         if(addrMode == "PUSH") { pushStack(r[regD]); continue; }
+         if(addrMode == "POP") { r[regD] = popStack(); continue; }
 
          if(currentInstruction == "call"){processCALL(); continue; }
          if(currentInstruction == "jmp"){ processJMP(); continue; }
@@ -171,7 +173,7 @@ void emulate(){
          exit(1);
       }
 
-      
+
    }
 }
 
@@ -389,9 +391,9 @@ void processLDR(){
       operand = fetchTwoBytesFromMemory(offset); 
    } 
    if(addrMode == "PC_REL"){
-      short offset = fetchTwoBytesFromMemory(r[7]);
+      operand = fetchTwoBytesFromMemory(r[7]);
       r[7] += 2; //pc = pc + 2
-      operand = fetchTwoBytesFromMemory(r[7] + offset);
+      operand += r[7];
    }
    if(addrMode == "REG_INDIR_OFFSET"){
       short offset = fetchTwoBytesFromMemory(r[7]);
@@ -403,16 +405,18 @@ void processLDR(){
       operand = r[regS];
    }
    if(addrMode == "REG_INDIR"){
-      operand = fetchTwoBytesFromMemory( memory[ r[regS] ]);
+      operand = fetchTwoBytesFromMemory(r[regS]);
    }
 
    return operand;
  }
 
  short fetchTwoBytesFromMemory(int location){
-   unsigned char dataLow = memory[location];
-   unsigned char dataHigh = memory[location+1];
-   return (dataHigh << 8) | (dataLow & 0xFF);
+
+   int high = (int8_t)  memory[location+1];
+   int low = (int8_t)memory[location] & 0xFF;
+   int codeValue = (high << 8) | (low);
+   return (high << 8) | (low & 0xFF);
  }
 
   void processSTR(){
@@ -464,7 +468,7 @@ void processLDR(){
 void generateOutput(){
    cout << "------------------------------------------------" << endl;
    cout << "Emulated processor executed halt instruction" << endl;
-   cout << "Emulated processor state: psw=0b" << std::bitset<16>(r[7]) << endl;
+   cout << "Emulated processor state: psw=0b" << std::bitset<16>(r[8]) << endl;
    cout<< hex << " r0=0x" << setw(4) << setfill('0') << r[0] << " r1=0x" << setw(4) << setfill('0') << r[1] << " r2=0x" << setw(4) << setfill('0') <<  r[2] << " r3=0x" << setw(4) << setfill('0') <<  r[3] << endl;
    cout<< hex << " r4=0x" << setw(4) << setfill('0') << r[4] << " r5=0x" << setw(4) << setfill('0') << r[5] << " r6=0x" << setw(4) << setfill('0') << r[6] << " r7=0x" << setw(4) << setfill('0') << r[7] << endl;
 }
