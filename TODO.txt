@@ -1,7 +1,0 @@
--Proveri kada ispravljas vrednost kod backpachinga
--Proveri redosled operacija da li se sve hvata kada treba, pogotovo kod skokova
-(registarsko direktno npr hvatalo i registarsko indirektno, pazi tu)
-
-NOTES:
-Razlika u odnosu na output koji je Milan dao je ta da ja razrezavam lokalne simbole koje mogu i odmah upisujem u kod (npr destinations)
-i kod PC relativnog adresiranja odmah ubacujem u kod -2
